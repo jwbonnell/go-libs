@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/jackc/pgx/v5"
+	"github.com/jwbonnell/go-libs/pkg/db/queriers"
 )
 
-func Exec[T any](ctx context.Context, d Queryer, sql string, args T) error {
+func Exec[T any](ctx context.Context, d queriers.Querier, sql string, args T) error {
 	namedArgs, err := StructToNamedArgs(args)
 	rows, err := d.Query(ctx, sql, namedArgs)
 	if err != nil {

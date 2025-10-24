@@ -3,12 +3,13 @@ package db
 import (
 	"context"
 	"fmt"
+	"github.com/jwbonnell/go-libs/pkg/db/queriers"
 
 	"github.com/jackc/pgx/v5"
 )
 
 // QueryOne database record
-func QueryOne[T any](ctx context.Context, q Queryer, sql string, dest *T, namedArgs pgx.NamedArgs) error {
+func QueryOne[T any](ctx context.Context, q queriers.Querier, sql string, dest *T, namedArgs pgx.NamedArgs) error {
 	rows, err := q.Query(ctx, sql, namedArgs)
 	if err != nil {
 		return fmt.Errorf("query: %w", err)
@@ -30,7 +31,7 @@ func QueryOne[T any](ctx context.Context, q Queryer, sql string, dest *T, namedA
 }
 
 // Query multiple database records
-func Query[T any](ctx context.Context, q Queryer, sql string, dest *[]T, namedArgs pgx.NamedArgs) error {
+func Query[T any](ctx context.Context, q queriers.Querier, sql string, dest *[]T, namedArgs pgx.NamedArgs) error {
 	rows, err := q.Query(ctx, sql, namedArgs)
 	if err != nil {
 		return fmt.Errorf("query named: %w", err)
