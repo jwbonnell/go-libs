@@ -1,10 +1,13 @@
 
-.PHONY: test test_pkg_db test_pkg_log bench_pkg_log
+.PHONY: test test_pkg_db test_pkg_log bench_pkg_log test_pkg_web
 
-test: test_pkg_db test_pkg_log
+test: test_pkg_db test_pkg_log test_pkg_web
 
 test_pkg_db:
 	go test -v ./pkg/db/...
+
+test_pkg_web:
+	go test -v ./pkg/web/...
 
 test_pkg_log:
 	go test -v ./pkg/log/...
