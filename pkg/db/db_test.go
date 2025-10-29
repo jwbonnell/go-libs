@@ -3,12 +3,13 @@ package db
 import (
 	"context"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/suite"
-	"log"
 	"net/url"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/jwbonnell/go-libs/pkg/log"
+	"github.com/stretchr/testify/suite"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/ory/dockertest/v3"
@@ -53,7 +54,8 @@ type DBTestSuite struct {
 }
 
 func (s *DBTestSuite) SetupSuite() {
-	connStr, cleanup, err := setupPostgres()
+	logger := log.NewCILogger("integration-tests")
+	connCfg, cleanup, err := setupPostgres(logger)
 	if err != nil {
 		panic(err)
 	}
@@ -61,7 +63,7 @@ func (s *DBTestSuite) SetupSuite() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	d, err := New(ctx, ConnectionConfig{})
+	d, err := New(ctx, connCfg, logger)
 	if err != nil {
 		panic(err)
 	}
@@ -315,10 +317,10 @@ func (s *DBTestSuite) TestTransactionRollback_Integration() {
 					/_/
 */
 
-func setupPostgres() (connStr string, cleanup func(), err error) {
+func setupPostgres(log *log.Logger) (connCfg ConnectionConfig, cleanup func(), err error) {
 	testPool, err := dockertest.NewPool("")
 	if err != nil {
-		return "", func() {}, err
+		return ConnectionConfig{}, func() {}, err
 	}
 
 	resource, err := testPool.Run("postgres", "15-alpine", []string{
@@ -328,18 +330,24 @@ func setupPostgres() (connStr string, cleanup func(), err error) {
 	})
 
 	if err != nil {
-		return "", func() {}, err
+		return ConnectionConfig{}, func() {}, err
 	}
 
 	// Expire container after 10 minutes to avoid leaks in CI
 	err = resource.Expire(600)
 	if err != nil {
-		return "", func() {}, err
+		return ConnectionConfig{}, func() {}, err
 	}
 
-	//connStr = fmt.Sprintf("postgres://postgres:secret@localhost:%s/testdb?sslmode=disable", resource.GetPort("5432/tcp"))
-
-	cfg := ConnectionConfig{}
+	connCfg = ConnectionConfig{
+		User:         "postgres",
+		Password:     "secret",
+		Host:         fmt.Sprintf("localhost:%s", resource.GetPort("5432/tcp")),
+		Name:         "testdb",
+		MaxIdleConns: 0,
+		MaxOpenConns: 0,
+		DisableTLS:   true,
+	}
 
 	q := make(url.Values)
 	q.Set("sslmode", "disable")
@@ -347,9 +355,9 @@ func setupPostgres() (connStr string, cleanup func(), err error) {
 
 	u := url.URL{
 		Scheme:   "postgres",
-		User:     url.UserPassword("postgres", "secret"),
-		Host:     fmt.Sprintf("localhost:%s", resource.GetPort("5432/tcp")),
-		Path:     "testdb",
+		User:     url.UserPassword(connCfg.User, connCfg.Password),
+		Host:     connCfg.Host,
+		Path:     connCfg.Name,
 		RawQuery: q.Encode(),
 	}
 
@@ -370,17 +378,17 @@ func setupPostgres() (connStr string, cleanup func(), err error) {
 	if err != nil {
 		err = testPool.Purge(resource)
 		if err != nil {
-			return "", func() {}, err
+			return ConnectionConfig{}, func() {}, err
 		}
 	}
 
 	cleanup = func() {
 		if err := testPool.Purge(resource); err != nil {
-			log.Printf("could not purge resource: %v", err)
+			log.Error(context.Background(), fmt.Sprintf("could not purge resource: %v", err))
 		}
 	}
 
-	return connStr, cleanup, nil
+	return connCfg, cleanup, nil
 }
 
 func (s *DBTestSuite) seed() error {

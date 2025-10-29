@@ -53,7 +53,9 @@ func New(ctx context.Context, cfg ConnectionConfig, log *log.Logger) (*DB, error
 	}
 
 	// optional sensible defaults
-	pgxCfg.MaxConns = int32(cfg.MaxOpenConns)
+	if cfg.MaxOpenConns > 0 {
+		pgxCfg.MaxConns = int32(cfg.MaxOpenConns)
+	}
 	pgxCfg.MinConns = 1
 	pgxCfg.MaxConnLifetime = time.Hour
 

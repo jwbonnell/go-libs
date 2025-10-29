@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"runtime"
 	"time"
@@ -87,6 +88,12 @@ func (log *Logger) write(ctx context.Context, level Level, caller int, msg strin
 // New constructs a new log for application use.
 func New(w io.Writer, minLevel Level, serviceName string, traceIDFn TraceIDFn) *Logger {
 	return new(w, minLevel, serviceName, traceIDFn)
+}
+
+func NewCILogger(serviceName string) *Logger {
+	return new(os.Stdout, slog.LevelDebug, serviceName, func(ctx context.Context) string {
+		return "ci-trace-id"
+	})
 }
 
 func new(w io.Writer, minLevel Level, serviceName string, traceIDFn TraceIDFn) *Logger {
