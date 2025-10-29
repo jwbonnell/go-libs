@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 	"log"
+	"net/url"
 	"testing"
 	"time"
 
@@ -60,7 +61,7 @@ func (s *DBTestSuite) SetupSuite() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	d, err := New(ctx, connStr)
+	d, err := New(ctx, ConnectionConfig{})
 	if err != nil {
 		panic(err)
 	}
@@ -336,7 +337,23 @@ func setupPostgres() (connStr string, cleanup func(), err error) {
 		return "", func() {}, err
 	}
 
-	connStr = fmt.Sprintf("postgres://postgres:secret@localhost:%s/testdb?sslmode=disable", resource.GetPort("5432/tcp"))
+	//connStr = fmt.Sprintf("postgres://postgres:secret@localhost:%s/testdb?sslmode=disable", resource.GetPort("5432/tcp"))
+
+	cfg := ConnectionConfig{}
+
+	q := make(url.Values)
+	q.Set("sslmode", "disable")
+	q.Set("timezone", "utc")
+
+	u := url.URL{
+		Scheme:   "postgres",
+		User:     url.UserPassword("postgres", "secret"),
+		Host:     fmt.Sprintf("localhost:%s", resource.GetPort("5432/tcp")),
+		Path:     "testdb",
+		RawQuery: q.Encode(),
+	}
+
+	connStr := u.String()
 
 	// Exponential backoff to wait for Postgres readiness
 	testPool.MaxWait = 2 * time.Minute
