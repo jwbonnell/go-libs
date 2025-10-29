@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -94,6 +95,10 @@ func NewCILogger(serviceName string) *Logger {
 	return new(os.Stdout, slog.LevelDebug, serviceName, func(ctx context.Context) string {
 		return "ci-trace-id"
 	})
+}
+
+func NewStdLogger(logger *Logger, level Level) *log.Logger {
+	return slog.NewLogLogger(logger.handler, slog.Level(level))
 }
 
 func new(w io.Writer, minLevel Level, serviceName string, traceIDFn TraceIDFn) *Logger {
