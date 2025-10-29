@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"github.com/jwbonnell/go-libs/pkg/log"
+	"github.com/jwbonnell/go-libs/pkg/logx"
 	"log/slog"
 	"os"
 )
@@ -15,9 +15,9 @@ func traceIDFromContext(ctx context.Context) string {
 
 func main() {
 	// Create a logger that writes to stdout
-	logger := log.New(
+	logger := logx.New(
 		os.Stdout,          // Write to standard output
-		slog.LevelDebug,    // Set minimum log level to Debug
+		slog.LevelDebug,    // Set minimum logx level to Debug
 		"my-service",       // Service name
 		traceIDFromContext, // Trace ID function
 	)
@@ -25,7 +25,7 @@ func main() {
 	// Create a context (can be background or with values)
 	ctx := context.Background()
 
-	// Demonstrate different log levels
+	// Demonstrate different logx levels
 	logger.Debug(ctx, "This is a debug message",
 		"user_id", 12345,
 		"action", "login")

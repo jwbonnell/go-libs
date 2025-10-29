@@ -3,7 +3,7 @@ package web
 import (
 	"context"
 	"fmt"
-	"github.com/jwbonnell/go-libs/pkg/log"
+	"github.com/jwbonnell/go-libs/pkg/logx"
 	"github.com/jwbonnell/go-libs/pkg/web/httpx"
 	"net/http"
 	"time"
@@ -13,7 +13,7 @@ type Server struct {
 	serviceName string
 	mux         *http.ServeMux
 	httpServer  *http.Server
-	logger      *log.Logger
+	logger      *logx.Logger
 	config      *ServerConfig
 	mw          []httpx.Middleware
 }
@@ -31,7 +31,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	return nil
 }
 
-func NewServer(serviceName string, logger *log.Logger, opts ...func(*ServerConfig)) (*Server, error) {
+func NewServer(serviceName string, logger *logx.Logger, opts ...func(*ServerConfig)) (*Server, error) {
 	// Default configuration
 	config := &ServerConfig{
 		Port:         8080,

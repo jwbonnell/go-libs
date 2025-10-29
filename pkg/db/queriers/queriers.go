@@ -5,7 +5,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/jwbonnell/go-libs/pkg/log"
+	"github.com/jwbonnell/go-libs/pkg/logx"
 )
 
 // Querier is a minimal adapter interface that abstracts over a pgx connection
@@ -35,7 +35,7 @@ type Querier interface {
 //   - Log: optional logger that callers or higher-level helpers can use.
 type PoolQuerier struct {
 	Q   *pgxpool.Pool
-	Log *log.Logger
+	Log *logx.Logger
 }
 
 // Query forwards the call to the underlying pool's Query method.
@@ -70,11 +70,11 @@ func (pq *PoolQuerier) Begin(ctx context.Context) (*TxQuerier, error) {
 // TxQuerier wraps a pgx.Tx and implements Querier for use inside transactions.
 //
 // The wrapper stores the pgx.Tx (interface) directly (not a pointer to an
-// interface). The optional log field is carried through from PoolQuerier when
+// interface). The optional logx field is carried through from PoolQuerier when
 // transactions are started.
 type TxQuerier struct {
 	q   pgx.Tx
-	log *log.Logger
+	log *logx.Logger
 }
 
 // Query forwards to the underlying transaction's Query method.

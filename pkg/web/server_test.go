@@ -9,16 +9,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jwbonnell/go-libs/pkg/log"
+	"github.com/jwbonnell/go-libs/pkg/logx"
 	"github.com/jwbonnell/go-libs/pkg/web/httpx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // simple logger helper for tests
-func testLogger(t *testing.T) *log.Logger {
+func testLogger(t *testing.T) *logx.Logger {
 	var buf bytes.Buffer
-	return log.New(&buf, slog.LevelDebug, "test-service", mockTraceIDFn)
+	return logx.New(&buf, slog.LevelDebug, "test-service", mockTraceIDFn)
 }
 
 func mockTraceIDFn(ctx context.Context) string {

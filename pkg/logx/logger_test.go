@@ -1,4 +1,4 @@
-package log
+package logx
 
 import (
 	"bytes"
@@ -60,12 +60,12 @@ func TestLoggerLevels(t *testing.T) {
 			ctx := context.Background()
 			tc.logFunc(logger, ctx, "test message", "key", "value")
 
-			// Parse the JSON log output
+			// Parse the JSON logx output
 			var logEntry map[string]interface{}
 			err := json.Unmarshal(buf.Bytes(), &logEntry)
 			assert.NoError(t, err)
 
-			// Verify log level and other details
+			// Verify logx level and other details
 			assert.Equal(t, tc.expectedLevel, logEntry["level"])
 			assert.Equal(t, "test message", logEntry["msg"])
 			assert.Equal(t, "test-service", logEntry["service"])
@@ -118,12 +118,12 @@ func TestLoggerCallerSpecific(t *testing.T) {
 
 			tc.logFunc(logger, ctx, 2, "test message", "key", "value")
 
-			// Parse the JSON log output
+			// Parse the JSON logx output
 			var logEntry map[string]interface{}
 			err := json.Unmarshal(buf.Bytes(), &logEntry)
 			assert.NoError(t, err)
 
-			// Verify log level and other details
+			// Verify logx level and other details
 			assert.Equal(t, tc.expectedLevel, logEntry["level"])
 			assert.Equal(t, "test message", logEntry["msg"])
 			assert.Equal(t, "test-service", logEntry["service"])
@@ -153,35 +153,35 @@ func TestLoggerLevelFiltering(t *testing.T) {
 		shouldBeLogged bool
 	}{
 		{
-			name:           "Debug log when level is Debug",
+			name:           "Debug logx when level is Debug",
 			minLevel:       slog.LevelDebug,
 			logFunc:        (*Logger).Debug,
 			logLevel:       slog.LevelDebug,
 			shouldBeLogged: true,
 		},
 		{
-			name:           "Info log when level is Info",
+			name:           "Info logx when level is Info",
 			minLevel:       slog.LevelInfo,
 			logFunc:        (*Logger).Info,
 			logLevel:       slog.LevelInfo,
 			shouldBeLogged: true,
 		},
 		{
-			name:           "Warn log when level is Warn",
+			name:           "Warn logx when level is Warn",
 			minLevel:       slog.LevelWarn,
 			logFunc:        (*Logger).Warn,
 			logLevel:       slog.LevelWarn,
 			shouldBeLogged: true,
 		},
 		{
-			name:           "Error log when level is Error",
+			name:           "Error logx when level is Error",
 			minLevel:       slog.LevelError,
 			logFunc:        (*Logger).Error,
 			logLevel:       slog.LevelError,
 			shouldBeLogged: true,
 		},
 		{
-			name:           "Debug log when level is Info",
+			name:           "Debug logx when level is Info",
 			minLevel:       slog.LevelInfo,
 			logFunc:        (*Logger).Debug,
 			logLevel:       slog.LevelDebug,
@@ -200,7 +200,7 @@ func TestLoggerLevelFiltering(t *testing.T) {
 			if tc.shouldBeLogged {
 				assert.NotEqual(t, 0, buf.Len(), "Log should be written")
 
-				// Verify the log content
+				// Verify the logx content
 				var logEntry map[string]interface{}
 				err := json.Unmarshal(buf.Bytes(), &logEntry)
 				assert.NoError(t, err)
@@ -222,7 +222,7 @@ func TestLoggerSourceFormatting(t *testing.T) {
 	ctx := context.Background()
 	logger.Info(ctx, "test message")
 
-	// Parse the JSON log output
+	// Parse the JSON logx output
 	var logEntry map[string]interface{}
 	err := json.Unmarshal(buf.Bytes(), &logEntry)
 	assert.NoError(t, err)
@@ -272,7 +272,7 @@ func TestLoggerWithTraceID(t *testing.T) {
 				return
 			}
 
-			// Parse the JSON log output
+			// Parse the JSON logx output
 			var logEntry map[string]interface{}
 			err := json.Unmarshal(buf.Bytes(), &logEntry)
 			assert.NoError(t, err)
@@ -280,7 +280,7 @@ func TestLoggerWithTraceID(t *testing.T) {
 			// Check trace ID
 			if tc.expectedTraceID != "" {
 				traceID, exists := logEntry["trace_id"]
-				assert.True(t, exists, "Trace ID should exist in log entry")
+				assert.True(t, exists, "Trace ID should exist in logx entry")
 				assert.Equal(t, tc.expectedTraceID, traceID)
 			}
 		})
@@ -291,7 +291,7 @@ func TestLoggerWithTraceID(t *testing.T) {
 func BenchmarkLoggerPerformance(b *testing.B) {
 	ctx := context.Background()
 
-	// Benchmark with different log writers
+	// Benchmark with different logx writers
 	benchmarkCases := []struct {
 		name   string
 		writer io.Writer
@@ -306,7 +306,7 @@ func BenchmarkLoggerPerformance(b *testing.B) {
 
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				logger.Info(ctx, "benchmark log message",
+				logger.Info(ctx, "benchmark logx message",
 					"key1", "value1",
 					"key2", 42,
 					"key3", true)

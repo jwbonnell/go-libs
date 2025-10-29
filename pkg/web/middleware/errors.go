@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"github.com/jwbonnell/go-libs/pkg/log"
+	"github.com/jwbonnell/go-libs/pkg/logx"
 	"github.com/jwbonnell/go-libs/pkg/web/httpx"
 	"net/http"
 )
@@ -9,7 +9,7 @@ import (
 // Errors handles errors coming out of the call chain. It detects normal
 // application errors which are used to respond to the client in a uniform way.
 // Unexpected errors (status >= 500) are logged.
-func Errors(log *log.Logger) httpx.Middleware {
+func Errors(log *logx.Logger) httpx.Middleware {
 	m := func(next httpx.HandlerFunc) httpx.HandlerFunc {
 		h := func(w http.ResponseWriter, r *http.Request) httpx.Response {
 			ctx := r.Context()

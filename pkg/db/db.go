@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/jwbonnell/go-libs/pkg/db/queriers"
-	"github.com/jwbonnell/go-libs/pkg/log"
+	"github.com/jwbonnell/go-libs/pkg/logx"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -15,7 +15,7 @@ import (
 // DB wraps a pgxpool.Pool and provides simple helpers.
 type DB struct {
 	pool *pgxpool.Pool
-	log  *log.Logger
+	log  *logx.Logger
 }
 
 func (d *DB) Pool() *queriers.PoolQuerier {
@@ -26,7 +26,7 @@ func (d *DB) Pool() *queriers.PoolQuerier {
 }
 
 // New creates a new DB pool. connString is a standard PG connection string.
-func New(ctx context.Context, cfg ConnectionConfig, log *log.Logger) (*DB, error) {
+func New(ctx context.Context, cfg ConnectionConfig, log *logx.Logger) (*DB, error) {
 	sslMode := "required"
 	if cfg.DisableTLS {
 		sslMode = "disable"

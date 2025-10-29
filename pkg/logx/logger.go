@@ -1,4 +1,4 @@
-package log
+package logx
 
 import (
 	"context"
@@ -85,7 +85,7 @@ func (log *Logger) write(ctx context.Context, level Level, caller int, msg strin
 	log.handler.Handle(ctx, r)
 }
 
-// New constructs a new log for application use.
+// New constructs a new logx for application use.
 func New(w io.Writer, minLevel Level, serviceName string, traceIDFn TraceIDFn) *Logger {
 	return new(w, minLevel, serviceName, traceIDFn)
 }
@@ -113,7 +113,7 @@ func new(w io.Writer, minLevel Level, serviceName string, traceIDFn TraceIDFn) *
 	// Construct the slog JSON handler for use.
 	handler := slog.Handler(slog.NewJSONHandler(w, &slog.HandlerOptions{AddSource: true, Level: minLevel, ReplaceAttr: f}))
 
-	// Attributes to add to every log.
+	// Attributes to add to every logx.
 	attrs := []slog.Attr{
 		{Key: "service", Value: slog.StringValue(serviceName)},
 	}

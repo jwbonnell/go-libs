@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jwbonnell/go-libs/pkg/log"
+	"github.com/jwbonnell/go-libs/pkg/logx"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/jackc/pgx/v5"
@@ -54,7 +54,7 @@ type DBTestSuite struct {
 }
 
 func (s *DBTestSuite) SetupSuite() {
-	logger := log.NewCILogger("integration-tests")
+	logger := logx.NewCILogger("integration-tests")
 	connCfg, cleanup, err := setupPostgres(logger)
 	if err != nil {
 		panic(err)
@@ -317,7 +317,7 @@ func (s *DBTestSuite) TestTransactionRollback_Integration() {
 					/_/
 */
 
-func setupPostgres(log *log.Logger) (connCfg ConnectionConfig, cleanup func(), err error) {
+func setupPostgres(log *logx.Logger) (connCfg ConnectionConfig, cleanup func(), err error) {
 	testPool, err := dockertest.NewPool("")
 	if err != nil {
 		return ConnectionConfig{}, func() {}, err

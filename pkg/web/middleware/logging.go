@@ -2,14 +2,14 @@ package middleware
 
 import (
 	"fmt"
-	"github.com/jwbonnell/go-libs/pkg/log"
+	"github.com/jwbonnell/go-libs/pkg/logx"
 	"github.com/jwbonnell/go-libs/pkg/web/context"
 	"github.com/jwbonnell/go-libs/pkg/web/httpx"
 	"net/http"
 	"time"
 )
 
-func Logger(log *log.Logger) httpx.Middleware {
+func Logger(log *logx.Logger) httpx.Middleware {
 	m := func(next httpx.HandlerFunc) httpx.HandlerFunc {
 		h := func(w http.ResponseWriter, r *http.Request) httpx.Response {
 			ctx := r.Context()
