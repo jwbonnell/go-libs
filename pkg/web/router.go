@@ -1,43 +1,26 @@
 package web
 
 import (
-	"fmt"
-	"github.com/jwbonnell/go-libs/pkg/web/middleware"
-	"net/http"
+	"github.com/jwbonnell/go-libs/pkg/web/httpx"
 )
 
-type Router struct {
-	mw  []middleware.Middleware
-	mux http.ServeMux
-}
-
-func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {}
-
-func (r *Router) HandleFunc(method string, path string, handler http.Handler, mw ...middleware.Middleware) {
-	handler = middleware.wrap(mw, handler)
-	handler = middleware.wrap(r.mw, handler)
-	path = fmt.Sprintf("%s %s", method, path)
-	r.mux.HandleFunc(path, handler)
-}
-
 type Route struct {
-	method  string
-	path    string
-	handler http.Handler
-	Mw      []middleware.Middleware
+	Method  string
+	Path    string
+	Handler httpx.HandlerFunc
+	Mw      []httpx.Middleware
 }
 
-type RouteGroup struct {
+/*type RouteGroup struct {
 	prefix string
-	router *Router
-	mw     []middleware.Middleware
+	mw     []httpx.Middleware
 }
 
-func NewRouteGroup(prefix string, router *Router, mw []middleware.Middleware) *RouteGroup {
-	return &RouteGroup{prefix: prefix, router: router, mw: mw}
+func NewRouteGroup(prefix string, mw []httpx.Middleware) *RouteGroup {
+	return &RouteGroup{prefix: prefix, mw: mw}
 }
 
-func (rg *RouteGroup) HandleFunc(method string, path string, handler http.Handler, mw ...middleware.Middleware) {
+func (rg *RouteGroup) HandleFunc(method string, path string, handler http.Handler, mw ...httpx.Middleware) {
 	//combine route group middleware with route middleware
 	mw = append(rg.mw, mw...)
 	//add group prefix to route path
@@ -46,3 +29,4 @@ func (rg *RouteGroup) HandleFunc(method string, path string, handler http.Handle
 	}
 	rg.router.HandleFunc(method, path, handler, mw...)
 }
+*/

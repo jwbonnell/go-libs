@@ -1,31 +1,29 @@
 package middleware
 
-/*func Logger(log *log.Logger) Middleware {
-	m := func(next HandlerFunc) HandlerFunc {
-		h := func(ctx context.Context, r *http.Request) web.Encoder {
-			now := time.Now()
+import (
+	"fmt"
+	"github.com/jwbonnell/go-libs/pkg/log"
+	"github.com/jwbonnell/go-libs/pkg/web/context"
+	"github.com/jwbonnell/go-libs/pkg/web/httpx"
+	"net/http"
+	"time"
+)
+
+func Logger(log *log.Logger) httpx.Middleware {
+	m := func(next httpx.HandlerFunc) httpx.HandlerFunc {
+		h := func(w http.ResponseWriter, r *http.Request) httpx.Response {
+			ctx := r.Context()
+			v := context.GetValues(ctx)
 
 			path := r.URL.Path
 			if r.URL.RawQuery != "" {
 				path = fmt.Sprintf("%s?%s", path, r.URL.RawQuery)
 			}
 
-			log.Info(ctx, "request started", "method", r.Method, "path", path, "remoteaddr", r.RemoteAddr)
+			resp := next(w, r)
 
-			resp := next(ctx, r)
-
-			var statusCode = errs.None
-			if err := isError(resp); err != nil {
-				statusCode = errs.Internal
-
-				var v *errs.Error
-				if errors.As(err, &v) {
-					statusCode = v.Code
-				}
-			}
-
-			log.Info(ctx, "request completed", "method", r.Method, "path", path, "remoteaddr", r.RemoteAddr,
-				"statuscode", statusCode, "since", time.Since(now).String())
+			log.Info(ctx, "request completed", "trace_id", v.TraceID, "method", r.Method, "path", path,
+				"remoteaddr", r.RemoteAddr, "statuscode", v.StatusCode, "since", time.Since(v.Now))
 
 			return resp
 		}
@@ -34,4 +32,4 @@ package middleware
 	}
 
 	return m
-}*/
+}
