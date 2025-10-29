@@ -3,10 +3,11 @@ package web
 import (
 	"context"
 	"fmt"
-	"github.com/jwbonnell/go-libs/pkg/logx"
-	"github.com/jwbonnell/go-libs/pkg/web/httpx"
 	"net/http"
 	"time"
+
+	"github.com/jwbonnell/go-libs/pkg/logx"
+	"github.com/jwbonnell/go-libs/pkg/web/httpx"
 )
 
 type Server struct {
