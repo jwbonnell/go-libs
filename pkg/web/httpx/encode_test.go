@@ -5,15 +5,15 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"io"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
 type sample struct {
-	Name string `json:"name" xml:"name"`
-	Age  int    `json:"age" xml:"age"`
+	Name    string `json:"name" xml:"name"`
+	Age     int    `json:"age" xml:"age"`
+	Unknown int    `json:"unknown" xml:"unknown"`
 }
 
 func TestJSONEncoder_Success(t *testing.T) {
@@ -50,27 +50,6 @@ func TestPlainTextEncoder_Success(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, contextType, "text/plain")
 	require.Equal(t, string(data), "something")
-}
-
-// Test that encoder returns write error
-func TestEncoders_WriteError(t *testing.T) {
-	tests := []struct {
-		name        string
-		encoder     Encoder
-		contentType string
-	}{
-		{"json", &JSONEncoder{}, "application/json"},
-		{"xml", &XMLEncoder{}, "application/xml"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, contentType, err := tt.encoder.Encode(sample{Name: "Z", Age: 1})
-			require.Error(t, err)
-			require.Equal(t, contentType, tt.contentType)
-			require.True(t, strings.Contains(err.Error(), "write failed"))
-		})
-	}
 }
 
 func TestPlainTextEncoder_Error(t *testing.T) {

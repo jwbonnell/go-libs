@@ -9,8 +9,8 @@ test_pkg_db:
 test_pkg_web:
 	go test -v ./pkg/web/...
 
-test_pkg_log:
-	go test -v ./pkg/log/...
+test_pkg_logx:
+	go test -v ./pkg/logx/...
 
 bench_pkg_log:
 	go test ./pkg/log/... -bench=. -benchmem
