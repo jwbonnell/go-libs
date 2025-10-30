@@ -2,7 +2,6 @@ package httpx
 
 import (
 	"context"
-	context2 "github.com/jwbonnell/go-libs/pkg/web/context"
 	"net/http"
 )
 
@@ -37,7 +36,7 @@ func XMLResponse(statusCode int, data any) Response {
 	}
 }
 
-func SendErrorResponse(err error, statusCode int) Response {
+func ErrorResponse(err error, statusCode int) Response {
 	return Response{
 		StatusCode: statusCode,
 		Err:        err,
@@ -46,7 +45,7 @@ func SendErrorResponse(err error, statusCode int) Response {
 }
 
 func Respond(ctx context.Context, w http.ResponseWriter, resp Response) error {
-	context2.SetStatusCode(ctx, resp.StatusCode)
+	SetStatusCode(ctx, resp.StatusCode)
 
 	if resp.StatusCode == http.StatusNoContent {
 		w.WriteHeader(resp.StatusCode)

@@ -2,18 +2,18 @@ package middleware
 
 import (
 	"fmt"
-	"github.com/jwbonnell/go-libs/pkg/logx"
-	"github.com/jwbonnell/go-libs/pkg/web/context"
-	"github.com/jwbonnell/go-libs/pkg/web/httpx"
 	"net/http"
 	"time"
+
+	"github.com/jwbonnell/go-libs/pkg/logx"
+	"github.com/jwbonnell/go-libs/pkg/web/httpx"
 )
 
 func Logger(log *logx.Logger) httpx.Middleware {
 	m := func(next httpx.HandlerFunc) httpx.HandlerFunc {
 		h := func(w http.ResponseWriter, r *http.Request) httpx.Response {
 			ctx := r.Context()
-			v := context.GetValues(ctx)
+			v := httpx.GetValues(ctx)
 
 			path := r.URL.Path
 			if r.URL.RawQuery != "" {
