@@ -17,6 +17,9 @@ test_pkg_web:
 test_pkg_logx:
 	go test -v ./pkg/logx/... 2>&1 | $(COLORIZE)
 
+test_pkg_mapper:
+	go test -v ./pkg/mapper/... 2>&1 | $(COLORIZE)
+
 bench_pkg_logx:
 	go test -v ./pkg/logx/... -bench=. -benchmem 2>&1 | $(COLORIZE)
 
