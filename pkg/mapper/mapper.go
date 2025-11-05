@@ -230,4 +230,9 @@ func init() {
 
 	// sql.NullString -> string
 	RegisterConverter(reflect.TypeOf(sql.NullString{}), reflect.TypeOf(""), nullStringToString)
+
+	// sql.NullTime -> string
+	RegisterConverter(reflect.TypeOf(sql.NullTime{}), reflect.TypeOf(""), sqlNullTimeToString(func(t time.Time) string {
+		return t.Format("2006-01-02 15:04:05")
+	}))
 }

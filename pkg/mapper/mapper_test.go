@@ -21,15 +21,17 @@ type nestedSrc struct {
 }
 
 type src struct {
-	ID       int
-	Name     string
-	Inner    srcInner
-	List     []srcInner
-	Ptr      *srcInner
-	RawT     time.Time
-	StrN     sql.NullString
-	Map      map[string]int
-	SlicePtr []*srcInner
+	ID        int
+	Name      string
+	Inner     srcInner
+	List      []srcInner
+	Ptr       *srcInner
+	RawT      time.Time
+	StrN      sql.NullString
+	NullTime  sql.NullTime
+	NullTime2 sql.NullTime
+	Map       map[string]int
+	SlicePtr  []*srcInner
 }
 
 type destInner struct {
@@ -43,15 +45,17 @@ type nestedDest struct {
 }
 
 type dest struct {
-	ID       int
-	Name     string
-	Inner    destInner
-	List     []destInner
-	Ptr      *destInner
-	RawT     sql.NullTime
-	StrN     string
-	Map      map[string]int
-	SlicePtr []destInner
+	ID        int
+	Name      string
+	Inner     destInner
+	List      []destInner
+	Ptr       *destInner
+	RawT      sql.NullTime
+	StrN      string
+	NullTime  string
+	NullTime2 string
+	Map       map[string]int
+	SlicePtr  []destInner
 }
 
 func TestMapStruct_SimpleFields(t *testing.T) {
@@ -60,6 +64,10 @@ func TestMapStruct_SimpleFields(t *testing.T) {
 		ID:   42,
 		Name: "test",
 		RawT: now,
+		NullTime2: sql.NullTime{
+			Time:  now,
+			Valid: true,
+		},
 		StrN: sql.NullString{String: "hello", Valid: true},
 		Map:  map[string]int{"a": 1},
 	}
@@ -69,6 +77,8 @@ func TestMapStruct_SimpleFields(t *testing.T) {
 	require.Equal(t, "test", got.Name)
 	require.True(t, got.RawT.Valid)
 	require.Equal(t, s.RawT, got.RawT.Time)
+	require.Equal(t, "", got.NullTime)
+	require.Equal(t, now.Format("2006-01-02 15:04:05"), got.NullTime2)
 	require.Equal(t, "hello", got.StrN)
 	require.True(t, reflect.DeepEqual(got.Map, map[string]int{"a": 1}))
 }
