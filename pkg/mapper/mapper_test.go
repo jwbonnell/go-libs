@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
 type srcInner struct {
@@ -58,7 +58,37 @@ type dest struct {
 	SlicePtr  []destInner
 }
 
-func TestMapStruct_SimpleFields(t *testing.T) {
+type MapperTestSuite struct {
+	suite.Suite
+}
+
+// In order for 'go test' to run this suite, you need to add a Test function
+// that calls suite.Run.
+func TestMapperTestSuite(t *testing.T) {
+	suite.Run(t, new(MapperTestSuite))
+}
+
+// SetupSuite adds all included custom mappers
+func (su *MapperTestSuite) SetupSuite() {
+	// sql.NullTime -> time.Time
+	RegisterConverter(reflect.TypeOf(sql.NullTime{}), reflect.TypeOf(time.Time{}), sqlNullTimeToTime)
+
+	// *sql.NullTime -> time.Time
+	RegisterConverter(reflect.TypeOf(&sql.NullTime{}).Elem(), reflect.TypeOf(time.Time{}), sqlNullPtrTimeToTime)
+
+	// time.Time -> sql.NullTime
+	RegisterConverter(reflect.TypeOf(time.Time{}), reflect.TypeOf(sql.NullTime{}), timeToSqlNullTime)
+
+	// sql.NullString -> string
+	RegisterConverter(reflect.TypeOf(sql.NullString{}), reflect.TypeOf(""), nullStringToString)
+
+	// sql.NullTime -> string
+	RegisterConverter(reflect.TypeOf(sql.NullTime{}), reflect.TypeOf(""), sqlNullTimeToString(func(t time.Time) string {
+		return t.Format("2006-01-02 15:04:05")
+	}))
+}
+
+func (su *MapperTestSuite) TestMapStruct_SimpleFields() {
 	now := time.Now()
 	s := src{
 		ID:   42,
@@ -72,18 +102,18 @@ func TestMapStruct_SimpleFields(t *testing.T) {
 		Map:  map[string]int{"a": 1},
 	}
 	got, err := MapStruct[dest](s)
-	require.NoError(t, err)
-	require.Equal(t, 42, got.ID)
-	require.Equal(t, "test", got.Name)
-	require.True(t, got.RawT.Valid)
-	require.Equal(t, s.RawT, got.RawT.Time)
-	require.Equal(t, "", got.NullTime)
-	require.Equal(t, now.Format("2006-01-02 15:04:05"), got.NullTime2)
-	require.Equal(t, "hello", got.StrN)
-	require.True(t, reflect.DeepEqual(got.Map, map[string]int{"a": 1}))
+	su.Require().NoError(err)
+	su.Require().Equal(42, got.ID)
+	su.Require().Equal("test", got.Name)
+	su.Require().True(got.RawT.Valid)
+	su.Require().Equal(s.RawT, got.RawT.Time)
+	su.Require().Equal("", got.NullTime)
+	su.Require().Equal(now.Format("2006-01-02 15:04:05"), got.NullTime2)
+	su.Require().Equal("hello", got.StrN)
+	su.Require().True(reflect.DeepEqual(got.Map, map[string]int{"a": 1}))
 }
 
-func TestMapStruct_NestedAndSlice(t *testing.T) {
+func (su *MapperTestSuite) TestMapStruct_NestedAndSlice() {
 	now := time.Now().Truncate(time.Second)
 	s := src{
 		ID:   1,
@@ -106,48 +136,24 @@ func TestMapStruct_NestedAndSlice(t *testing.T) {
 		},
 	}
 	got, err := MapStruct[dest](s)
-	require.NoError(t, err)
+	su.Require().NoError(err)
 
 	// Inner.When mapped to time.Time
-	if !got.Inner.When.Equal(now) {
-		t.Errorf("Inner.When: want %v got %v", now, got.Inner.When)
-	}
+	su.Require().True(got.Inner.When.Equal(now), fmt.Sprintf("Inner.When: want %v got %v", now, got.Inner.When))
+
 	// Inner.Tags
-	if !reflect.DeepEqual(got.Inner.Tags, []string{"x", "y"}) {
-		t.Errorf("Inner.Tags mismatch: %+v", got.Inner.Tags)
-	}
-	// Inner.Nest.Value mapped
-	if got.Inner.Nest.Value != 7 {
-		t.Errorf("Inner.Nest.Value: want 7 got %d", got.Inner.Nest.Value)
-	}
-	// List length and first element When
-	if len(got.List) != 2 {
-		t.Fatalf("List length: want 2 got %d", len(got.List))
-	}
-	if !got.List[0].When.Equal(now.Add(-24 * time.Hour)) {
-		t.Errorf("List[0].When mismatch: want %v got %v", now.Add(-24*time.Hour), got.List[0].When)
-	}
-	// Second element had NullTime invalid -> zero time
-	if !got.List[1].When.IsZero() {
-		t.Errorf("List[1].When expected zero, got %v", got.List[1].When)
-	}
-	// Ptr mapped into pointer dest.Ptr
-	if got.Ptr == nil {
-		t.Fatalf("Ptr expected non-nil")
-	}
-	if !got.Ptr.When.Equal(now.Add(1 * time.Hour)) {
-		t.Errorf("Ptr.When mismatch: got %v", got.Ptr.When)
-	}
-	// SlicePtr ([]*srcInner) -> []destInner
-	if len(got.SlicePtr) != 1 {
-		t.Fatalf("SlicePtr length want 1 got %d", len(got.SlicePtr))
-	}
-	if got.SlicePtr[0].Tags == nil || got.SlicePtr[0].Tags[0] != "sp" {
-		t.Errorf("SlicePtr element mismatch: %+v", got.SlicePtr[0])
-	}
+	su.Require().True(reflect.DeepEqual(got.Inner.Tags, []string{"x", "y"}), fmt.Sprintf("Inner.Tags mismatch: %+v", got.Inner.Tags))
+	su.Require().Equal(7, got.Inner.Nest.Value, fmt.Sprintf("Inner.Nest.Value: want 7 got %d", got.Inner.Nest.Value))
+	su.Require().Len(got.List, 2)
+	su.Require().True(got.List[0].When.Equal(now.Add(-24*time.Hour)), fmt.Sprintf("List[0].When mismatch: want %v got %v", now.Add(-24*time.Hour), got.List[0].When))
+	su.Require().True(got.List[1].When.IsZero(), fmt.Sprintf("List[1].When expected zero, got %v", got.List[1].When))
+	su.Require().NotNil(got.Ptr)
+	su.Require().True(got.Ptr.When.Equal(now.Add(1*time.Hour)), fmt.Sprintf("Ptr.When mismatch: got %v", got.Ptr.When))
+	su.Require().Equal(1, len(got.SlicePtr), fmt.Sprintf("SlicePtr length want 1 got %d", len(got.SlicePtr)))
+	su.Require().False(got.SlicePtr[0].Tags == nil || got.SlicePtr[0].Tags[0] != "sp", fmt.Sprintf("SlicePtr element mismatch: %+v", got.SlicePtr[0]))
 }
 
-func TestMapStruct_TypesSliceToArrayLengthDiff(t *testing.T) {
+func (su *MapperTestSuite) TestMapStruct_TypesSliceToArrayLengthDiff() {
 	// Attempt mapping where destination array too small
 	type S1 struct {
 		A []int
@@ -157,11 +163,11 @@ func TestMapStruct_TypesSliceToArrayLengthDiff(t *testing.T) {
 	}
 	s := S1{A: []int{1, 2}}
 	d, err := MapStruct[D1](s)
-	require.NoError(t, err)
-	require.Equal(t, 1, d.A[0])
+	su.Require().NoError(err)
+	su.Require().Equal(1, d.A[0])
 }
 
-func TestMapStruct_MapConversion(t *testing.T) {
+func (su *MapperTestSuite) TestMapStruct_MapConversion() {
 	type S2 struct {
 		M map[string]int
 	}
@@ -170,12 +176,8 @@ func TestMapStruct_MapConversion(t *testing.T) {
 	}
 	s := S2{M: map[string]int{"k": 9}}
 	got, err := MapStruct[D2](s)
-	if err != nil {
-		t.Fatalf("MapStruct error: %v", err)
-	}
-	if got.M["k"] != 9 {
-		t.Errorf("map value mismatch got %d", got.M["k"])
-	}
+	su.Require().NoError(err, fmt.Sprintf("MapStruct[D2]: %v", err))
+	su.Require().Equal(9, got.M["k"], fmt.Sprintf("MapStruct[D2]: want %v got %v", 9, got.M["k"]))
 }
 
 type msSrc struct {
@@ -190,60 +192,49 @@ type msDst struct {
 	When time.Time
 }
 
-func TestMapSlice_ValueElements(t *testing.T) {
+func (su *MapperTestSuite) TestMapSlice_ValueElements() {
 	now := time.Now().Truncate(time.Second)
 	src := []msSrc{
 		{ID: 1, Name: "a", When: sql.NullTime{Time: now, Valid: true}},
 		{ID: 2, Name: "b", When: sql.NullTime{Valid: false}},
 	}
 	got, err := MapSlice[msDst](src)
-	if err != nil {
-		t.Fatalf("MapSlice error: %v", err)
-	}
-	if len(got) != 2 {
-		t.Fatalf("len: want 2 got %d", len(got))
-	}
-	if got[0].ID != 1 || got[0].Name != "a" {
-		t.Errorf("element0 mismatch: %+v", got[0])
-	}
-	if !got[0].When.Equal(now) {
-		t.Errorf("element0 When: want %v got %v", now, got[0].When)
-	}
-	// second element had invalid NullTime -> zero time
-	if !got[1].When.IsZero() {
-		t.Errorf("element1 When expected zero, got %v", got[1].When)
-	}
+	su.Require().NoError(err)
+	su.Require().Len(got, 2)
+	su.Require().False(got[0].ID != 1 || got[0].Name != "a", fmt.Sprintf("element0 mismatch: %+v", got[0]))
+	su.Require().True(got[0].When.Equal(now), fmt.Sprintf("element0 When: want %v got %v", now, got[0].When))
+	su.Require().True(got[1].When.IsZero(), fmt.Sprintf("element1 When expected zero, got %v", got[1].When))
 }
 
-func TestMapSlice_PointerElements(t *testing.T) {
+func (su *MapperTestSuite) TestMapSlice_PointerElements() {
 	now := time.Now().Truncate(time.Second)
 	src := []*msSrc{
 		{ID: 3, Name: "p", When: sql.NullTime{Time: now, Valid: true}},
 		nil,
 	}
 	got, err := MapSlice[msDst](src)
-	require.NoError(t, err, fmt.Sprintf("MapSlice error: %v", err))
-	require.Len(t, got, 2, fmt.Sprintf("len: want 2 got %d", len(got)))
-	require.Equal(t, 3, got[0].ID, fmt.Sprintf("element0 mismatch: %+v", got[0]))
-	require.Equal(t, "p", got[0].Name, fmt.Sprintf("element0 mismatch: %+v", got[0]))
+	su.Require().NoError(err, fmt.Sprintf("MapSlice error: %v", err))
+	su.Require().Len(got, 2, fmt.Sprintf("len: want 2 got %d", len(got)))
+	su.Require().Equal(3, got[0].ID, fmt.Sprintf("element0 mismatch: %+v", got[0]))
+	su.Require().Equal("p", got[0].Name, fmt.Sprintf("element0 mismatch: %+v", got[0]))
 
 	// nil source pointer -> zero value dest
-	require.True(t, reflect.DeepEqual(got[1], msDst{}), fmt.Sprintf("element1 expected zero value, got %+v", got[1]))
+	su.Require().True(reflect.DeepEqual(got[1], msDst{}), fmt.Sprintf("element1 expected zero value, got %+v", got[1]))
 }
 
-func TestMapSlice_EmptyAndNil(t *testing.T) {
+func (su *MapperTestSuite) TestMapSlice_EmptyAndNil() {
 	var nilSlice []msSrc
 	got, err := MapSlice[msDst](nilSlice)
-	require.NoError(t, err, fmt.Sprintf("MapSlice error: %v", err))
-	require.NotNil(t, got, "expected empty slice (not nil), got nil")
+	su.Require().NoError(err, fmt.Sprintf("MapSlice error: %v", err))
+	su.Require().NotNil(got, "expected empty slice (not nil), got nil")
 
-	empty := []msSrc{}
+	var empty []msSrc
 	got2, err := MapSlice[msDst](empty)
-	require.NoError(t, err, fmt.Sprintf("MapSlice error: %v", err))
-	require.Equal(t, 0, len(got2), fmt.Sprintf("expected length 0, got %d", len(got2)))
+	su.Require().NoError(err, fmt.Sprintf("MapSlice error: %v", err))
+	su.Require().Equal(0, len(got2), fmt.Sprintf("expected length 0, got %d", len(got2)))
 }
 
-func TestMapSlice_NonSliceError(t *testing.T) {
+func (su *MapperTestSuite) TestMapSlice_NonSliceError() {
 	_, err := MapSlice[msDst](123)
-	require.Error(t, err, "expected error for non-slice input")
+	su.Require().Error(err, "expected error for non-slice input")
 }

@@ -1,12 +1,10 @@
 package mapper
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
 	"reflect"
 	"strings"
-	"time"
 )
 
 // MapSlice maps a slice/array of src elements (value or pointer) to a slice of dest elements of type T.
@@ -214,25 +212,4 @@ func setAssignable(src, dest reflect.Value) error {
 	}
 
 	return fmt.Errorf("cannot assign %s to %s", src.Type(), dest.Type())
-}
-
-// --- Register useful converters for common cases ---
-
-func init() {
-	// sql.NullTime -> time.Time
-	RegisterConverter(reflect.TypeOf(sql.NullTime{}), reflect.TypeOf(time.Time{}), sqlNullTimeToTime)
-
-	// *sql.NullTime -> time.Time
-	RegisterConverter(reflect.TypeOf(&sql.NullTime{}).Elem(), reflect.TypeOf(time.Time{}), sqlNullPtrTimeToTime)
-
-	// time.Time -> sql.NullTime
-	RegisterConverter(reflect.TypeOf(time.Time{}), reflect.TypeOf(sql.NullTime{}), timeToSqlNullTime)
-
-	// sql.NullString -> string
-	RegisterConverter(reflect.TypeOf(sql.NullString{}), reflect.TypeOf(""), nullStringToString)
-
-	// sql.NullTime -> string
-	RegisterConverter(reflect.TypeOf(sql.NullTime{}), reflect.TypeOf(""), sqlNullTimeToString(func(t time.Time) string {
-		return t.Format("2006-01-02 15:04:05")
-	}))
 }
