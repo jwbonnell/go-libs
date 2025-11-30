@@ -25,8 +25,8 @@ func convKey(a, b reflect.Type) string {
 	return a.PkgPath() + "." + a.Name() + "->" + b.PkgPath() + "." + b.Name()
 }
 
-// sqlNullTimeToTime - converter for sql.NullTime -> time.Time
-func sqlNullTimeToTime(src reflect.Value, destType reflect.Type) (reflect.Value, error) {
+// SqlNullTimeToTime - converter for sql.NullTime -> time.Time
+func SqlNullTimeToTime(src reflect.Value, destType reflect.Type) (reflect.Value, error) {
 	nt := src.Interface().(sql.NullTime)
 	if !nt.Valid {
 		return reflect.Zero(destType), nil
@@ -34,8 +34,8 @@ func sqlNullTimeToTime(src reflect.Value, destType reflect.Type) (reflect.Value,
 	return reflect.ValueOf(nt.Time).Convert(destType), nil
 }
 
-// sqlNullPtrTimeToTime - converter for pointer sql.NullTime -> time.Time
-func sqlNullPtrTimeToTime(src reflect.Value, destType reflect.Type) (reflect.Value, error) {
+// SqlNullPtrTimeToTime - converter for pointer sql.NullTime -> time.Time
+func SqlNullPtrTimeToTime(src reflect.Value, destType reflect.Type) (reflect.Value, error) {
 	nt := src.Interface().(sql.NullTime)
 	if !nt.Valid {
 		return reflect.Zero(destType), nil
@@ -43,14 +43,14 @@ func sqlNullPtrTimeToTime(src reflect.Value, destType reflect.Type) (reflect.Val
 	return reflect.ValueOf(nt.Time).Convert(destType), nil
 }
 
-// timeToSqlNullTime - converter for time.Time -> sql.NullTime
-func timeToSqlNullTime(src reflect.Value, destType reflect.Type) (reflect.Value, error) {
+// TimeToSqlNullTime - converter for time.Time -> sql.NullTime
+func TimeToSqlNullTime(src reflect.Value, destType reflect.Type) (reflect.Value, error) {
 	t := src.Interface().(time.Time)
 	return reflect.ValueOf(sql.NullTime{Time: t, Valid: !t.IsZero()}), nil
 }
 
-// nullStringToString - converter for sql.NullString -> string
-func nullStringToString(src reflect.Value, destType reflect.Type) (reflect.Value, error) {
+// NullStringToString - converter for sql.NullString -> string
+func NullStringToString(src reflect.Value, destType reflect.Type) (reflect.Value, error) {
 	ns := src.Interface().(sql.NullString)
 	if !ns.Valid {
 		return reflect.Zero(destType), nil
@@ -58,8 +58,8 @@ func nullStringToString(src reflect.Value, destType reflect.Type) (reflect.Value
 	return reflect.ValueOf(ns.String).Convert(destType), nil
 }
 
-// sqlNullTimeToString - converter for sql.NullTime -> string
-func sqlNullTimeToString(f TimeFormatter) Converter {
+// SqlNullTimeToString - converter for sql.NullTime -> string
+func SqlNullTimeToString(f TimeFormatter) Converter {
 	return func(src reflect.Value, destType reflect.Type) (reflect.Value, error) {
 		nt := src.Interface().(sql.NullTime)
 		if !nt.Valid {

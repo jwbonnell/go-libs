@@ -6,7 +6,7 @@ COLORIZE := sed -E \
 
 .PHONY: test test_pkg_db test_pkg_log bench_pkg_log test_pkg_web
 
-test: test_pkg_db test_pkg_log test_pkg_web
+test: test_pkg_db test_pkg_logx test_pkg_web test_pkg_mapper
 
 test_pkg_db:
 	go test -v ./pkg/db/... 2>&1 | $(COLORIZE)

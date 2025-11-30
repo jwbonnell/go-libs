@@ -71,19 +71,19 @@ func TestMapperTestSuite(t *testing.T) {
 // SetupSuite adds all included custom mappers
 func (su *MapperTestSuite) SetupSuite() {
 	// sql.NullTime -> time.Time
-	RegisterConverter(reflect.TypeOf(sql.NullTime{}), reflect.TypeOf(time.Time{}), sqlNullTimeToTime)
+	RegisterConverter(reflect.TypeOf(sql.NullTime{}), reflect.TypeOf(time.Time{}), SqlNullTimeToTime)
 
 	// *sql.NullTime -> time.Time
-	RegisterConverter(reflect.TypeOf(&sql.NullTime{}).Elem(), reflect.TypeOf(time.Time{}), sqlNullPtrTimeToTime)
+	RegisterConverter(reflect.TypeOf(&sql.NullTime{}).Elem(), reflect.TypeOf(time.Time{}), SqlNullPtrTimeToTime)
 
 	// time.Time -> sql.NullTime
-	RegisterConverter(reflect.TypeOf(time.Time{}), reflect.TypeOf(sql.NullTime{}), timeToSqlNullTime)
+	RegisterConverter(reflect.TypeOf(time.Time{}), reflect.TypeOf(sql.NullTime{}), TimeToSqlNullTime)
 
 	// sql.NullString -> string
-	RegisterConverter(reflect.TypeOf(sql.NullString{}), reflect.TypeOf(""), nullStringToString)
+	RegisterConverter(reflect.TypeOf(sql.NullString{}), reflect.TypeOf(""), NullStringToString)
 
 	// sql.NullTime -> string
-	RegisterConverter(reflect.TypeOf(sql.NullTime{}), reflect.TypeOf(""), sqlNullTimeToString(func(t time.Time) string {
+	RegisterConverter(reflect.TypeOf(sql.NullTime{}), reflect.TypeOf(""), SqlNullTimeToString(func(t time.Time) string {
 		return t.Format("2006-01-02 15:04:05")
 	}))
 }
