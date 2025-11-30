@@ -1,9 +1,12 @@
 package middleware
 
 import (
+	"errors"
+	"fmt"
+	"net/http"
+
 	"github.com/jwbonnell/go-libs/pkg/logx"
 	"github.com/jwbonnell/go-libs/pkg/web/httpx"
-	"net/http"
 )
 
 // Errors handles errors coming out of the call chain. It detects normal
@@ -15,7 +18,14 @@ func Errors(log *logx.Logger) httpx.Middleware {
 			ctx := r.Context()
 			resp := next(w, r)
 			if resp.Err != nil {
-				log.Error(ctx, "ERROR", "trace_id", "TODO", "message", resp.Err)
+				v := httpx.GetValues(ctx)
+
+				path := r.URL.Path
+				if r.URL.RawQuery != "" {
+					path = fmt.Sprintf("%s?%s", path, r.URL.RawQuery)
+				}
+
+				log.Info(ctx, "request error", "trace_id", v.TraceID, "error", resp.Err, "method", r.Method, "path", path)
 
 				/*var er v1.ErrorResponse
 				var status int
@@ -49,9 +59,10 @@ func Errors(log *logx.Logger) httpx.Middleware {
 					status = http.StatusInternalServerError
 				}
 				*/
-				/*if err := httpx.Respond(ctx, w, er, status); err != nil {
-					return err
-				}*/
+				return httpx.ErrorResponse(
+					errors.New(http.StatusText(http.StatusInternalServerError)),
+					http.StatusInternalServerError,
+				)
 			}
 
 			return resp
