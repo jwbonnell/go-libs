@@ -27,7 +27,7 @@ func (d *DB) Pool() *queriers.PoolQuerier {
 
 // New creates a new DB pool. connString is a standard PG connection string.
 func New(ctx context.Context, cfg ConnectionConfig, log *logx.Logger) (*DB, error) {
-	sslMode := "required"
+	sslMode := "require"
 	if cfg.DisableTLS {
 		sslMode = "disable"
 	}
