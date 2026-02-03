@@ -50,6 +50,21 @@ func (a *App) HandleFunc(method string, path string, handler httpx.HandlerFunc, 
 
 		resp := handler(w, r)
 
+		if resp.FilePath != "" {
+			if resp.ContentType != "" {
+				w.Header().Set("Content-Type", resp.ContentType)
+			}
+			if resp.FileName != "" {
+				w.Header().Set(
+					"Content-Disposition",
+					"inline; filename="+resp.FileName,
+				)
+			}
+
+			http.ServeFile(w, r, resp.FilePath)
+			return
+		}
+
 		if err := httpx.Respond(ctx, w, resp); err != nil {
 			a.log.Info(ctx, "web-respond", "ERROR", err)
 			return
