@@ -10,6 +10,10 @@ type Response struct {
 	Data       any
 	Encoder    Encoder
 	Err        error
+
+	FilePath   string
+	FileName   string
+	ContentType string
 }
 
 func PlainTextResponse(statusCode int, data any) Response {
@@ -33,6 +37,15 @@ func XMLResponse(statusCode int, data any) Response {
 		StatusCode: statusCode,
 		Data:       data,
 		Encoder:    NewEncoder("xml"),
+	}
+}
+
+func FileResponse(statusCode int, fullFilePath string, contentType string) Response {
+	return Response{
+		StatusCode: statusCode,
+		ContentType: contentType,
+		FilePath:   fullFilePath,
+		FileName:   filepath.Base(fullFilePath),
 	}
 }
 
