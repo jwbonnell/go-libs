@@ -15,10 +15,6 @@ type App struct {
 	origins []string
 }
 
-type AppConfig struct {
-	allowedOrigins []string
-}
-
 func NewApp(log *logx.Logger, mw ...httpx.Middleware) *App {
 	return &App{
 		log: log,
@@ -28,6 +24,20 @@ func NewApp(log *logx.Logger, mw ...httpx.Middleware) *App {
 }
 
 func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if a.origins != nil {
+		origin := r.Header.Get("Origin")
+		for _, allowedOrigin := range a.origins {
+			if allowedOrigin == "*" || origin == allowedOrigin {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				break
+			}
+		}
+
+		w.Header().Set("Access-Control-Allow-Methods", "POST, PATCH, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+		w.Header().Set("Access-Control-Max-Age", "86400")
+	}
+
 	// Max-age is set to 2 years, and is suffixed with
 	// preload, which is necessary for inclusion in all major web browsers' HSTS
 	// preload lists, like Chromium, Edge, and Firefox.
