@@ -43,6 +43,11 @@ func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// preload lists, like Chromium, Edge, and Firefox.
 	w.Header().Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
 
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
 	a.mux.ServeHTTP(w, r)
 }
 
