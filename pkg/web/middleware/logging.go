@@ -24,7 +24,7 @@ func Logger(log *logx.Logger) httpx.Middleware {
 				}
 
 				log.Info(ctx, "request completed", "trace_id", v.TraceID, "method", r.Method, "path", path,
-					"remoteaddr", r.RemoteAddr, "statuscode", v.StatusCode, "since", time.Since(v.Now))
+					"remoteaddr", r.RemoteAddr, "statuscode", resp.StatusCode, "since", time.Since(v.Now))
 			}
 
 			return resp
