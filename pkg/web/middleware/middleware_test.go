@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/jwbonnell/go-libs/pkg/logx"
 	"github.com/jwbonnell/go-libs/pkg/web/httpx"
 	"github.com/stretchr/testify/require"
 )
@@ -61,4 +62,20 @@ func okHandler(w http.ResponseWriter, r *http.Request) httpx.Response {
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("ok"))
 	return httpx.Response{Err: nil}
+}
+
+func TestErrorMiddleware(t *testing.T) {
+	mw := Errors(logx.NewCILogger("unit-tests"))
+	ok := httpx.HandlerFunc(func(w http.ResponseWriter, r *http.Request) httpx.Response {
+		return httpx.ErrorResponse(
+			httpx.NewTrustedError("my trusted error", errors.New("internal error message")),
+			http.StatusTeapot,
+		)
+	})
+	h := mw(ok)
+
+	w := httptest.NewRecorder()
+	resp := h(w, httptest.NewRequest("GET", "/", nil))
+	require.Error(t, resp.Err)
+	require.Equal(t, resp.Err.Error(), "my trusted error")
 }

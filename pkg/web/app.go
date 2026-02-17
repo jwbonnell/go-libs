@@ -56,10 +56,6 @@ func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	a.mux.ServeHTTP(w, r)
 }
 
-func (a *App) Group(prefix string, mw ...httpx.Middleware) {
-
-}
-
 func (a *App) HandleFunc(method string, path string, handler httpx.HandlerFunc, mw ...httpx.Middleware) {
 	handler = httpx.Wrap(mw, handler)
 	handler = httpx.Wrap(a.mw, handler)

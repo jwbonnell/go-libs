@@ -25,44 +25,24 @@ func Errors(log *logx.Logger) httpx.Middleware {
 					path = fmt.Sprintf("%s?%s", path, r.URL.RawQuery)
 				}
 
-				log.Info(ctx, "request error", "trace_id", v.TraceID, "error", resp.Err, "method", r.Method, "path", path)
+				log.Info(ctx, "request error", "trace_id", v.TraceID, "statuscode", resp.StatusCode, "error", resp.Err, "method", r.Method, "path", path)
 
-				/*var er v1.ErrorResponse
-				var status int
-
+				var errResp httpx.Response
 				switch {
-				case validate.IsFieldErrors(err):
-					fieldErrors := validate.GetFieldErrors(err)
-					er = v1.ErrorResponse{
-						Error:  "data validation error",
-						Fields: fieldErrors.Fields(),
-					}
-					status = http.StatusBadRequest
-
-				case v1.IsRequestError(err):
-					reqErr := v1.GetRequestError(err)
-					er = v1.ErrorResponse{
-						Error: reqErr.Error(),
-					}
-					status = reqErr.Status
-
-				case auth.IsAuthError(err):
-					er = v1.ErrorResponse{
-						Error: http.StatusText(http.StatusUnauthorized),
-					}
-					status = http.StatusUnauthorized
-
+				case httpx.IsTrustedError(resp.Err):
+					te := httpx.GetTrustedError(resp.Err)
+					return httpx.ErrorResponse(
+						errors.New(te.Msg),
+						resp.StatusCode,
+					)
 				default:
-					er = v1.ErrorResponse{
-						Error: http.StatusText(http.StatusInternalServerError),
-					}
-					status = http.StatusInternalServerError
+					errResp = httpx.ErrorResponse(
+						errors.New(http.StatusText(http.StatusInternalServerError)),
+						http.StatusInternalServerError,
+					)
 				}
-				*/
-				return httpx.ErrorResponse(
-					errors.New(http.StatusText(http.StatusInternalServerError)),
-					http.StatusInternalServerError,
-				)
+
+				return errResp
 			}
 
 			return resp
