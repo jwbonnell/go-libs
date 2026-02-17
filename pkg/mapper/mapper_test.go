@@ -30,6 +30,7 @@ type src struct {
 	StrN      sql.NullString
 	NullTime  sql.NullTime
 	NullTime2 sql.NullTime
+	NullTime3 string
 	Map       map[string]int
 	SlicePtr  []*srcInner
 }
@@ -54,6 +55,7 @@ type dest struct {
 	StrN      string
 	NullTime  string
 	NullTime2 string
+	NullTime3 sql.NullTime
 	Map       map[string]int
 	SlicePtr  []destInner
 }
@@ -86,10 +88,21 @@ func (su *MapperTestSuite) SetupSuite() {
 	RegisterConverter(reflect.TypeOf(sql.NullTime{}), reflect.TypeOf(""), SqlNullTimeToString(func(t time.Time) string {
 		return t.Format("2006-01-02 15:04:05")
 	}))
+
+	// string -> sql.NullTime
+	RegisterConverter(reflect.TypeOf(""), reflect.TypeOf(sql.NullTime{}), StringToSqlNullTime(func(s string) (time.Time, error) {
+		t, err := time.Parse(time.DateTime, s)
+		if err != nil {
+			return time.Time{}, err
+		}
+		return t, nil
+	}))
 }
 
 func (su *MapperTestSuite) TestMapStruct_SimpleFields() {
-	now := time.Now()
+	now := time.Now().UTC()
+	now2, err := time.Parse(time.DateTime, now.Format(time.DateTime))
+	su.Require().NoError(err)
 	s := src{
 		ID:   42,
 		Name: "test",
@@ -98,8 +111,9 @@ func (su *MapperTestSuite) TestMapStruct_SimpleFields() {
 			Time:  now,
 			Valid: true,
 		},
-		StrN: sql.NullString{String: "hello", Valid: true},
-		Map:  map[string]int{"a": 1},
+		NullTime3: now2.Format(time.DateTime),
+		StrN:      sql.NullString{String: "hello", Valid: true},
+		Map:       map[string]int{"a": 1},
 	}
 	got, err := MapStruct[dest](s)
 	su.Require().NoError(err)
@@ -109,6 +123,7 @@ func (su *MapperTestSuite) TestMapStruct_SimpleFields() {
 	su.Require().Equal(s.RawT, got.RawT.Time)
 	su.Require().Equal("", got.NullTime)
 	su.Require().Equal(now.Format("2006-01-02 15:04:05"), got.NullTime2)
+	su.Require().Equal(sql.NullTime{Valid: true, Time: now2}, got.NullTime3)
 	su.Require().Equal("hello", got.StrN)
 	su.Require().True(reflect.DeepEqual(got.Map, map[string]int{"a": 1}))
 }
