@@ -7,7 +7,7 @@ import (
 
 type ctxKey int
 
-const key ctxKey = 1
+const CtxKey ctxKey = 1
 
 type Values struct {
 	TraceID    string
@@ -17,7 +17,7 @@ type Values struct {
 
 // GetValues returns the values from the context.
 func GetValues(ctx context.Context) *Values {
-	v, ok := ctx.Value(key).(*Values)
+	v, ok := ctx.Value(CtxKey).(*Values)
 	if !ok {
 		return &Values{
 			TraceID: "00000000-0000-0000-0000-000000000000",
@@ -29,7 +29,7 @@ func GetValues(ctx context.Context) *Values {
 }
 
 func SetStatusCode(ctx context.Context, statusCode int) {
-	v, ok := ctx.Value(key).(*Values)
+	v, ok := ctx.Value(CtxKey).(*Values)
 	if !ok {
 		return
 	}

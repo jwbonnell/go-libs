@@ -1,9 +1,12 @@
 package web
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/jwbonnell/go-libs/pkg/logx"
 	"github.com/jwbonnell/go-libs/pkg/web/httpx"
 )
@@ -62,11 +65,11 @@ func (a *App) HandleFunc(method string, path string, handler httpx.HandlerFunc, 
 	path = buildPath(method, path, a.prefix)
 
 	h := func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		//ctx := setTracer(r.Context(), a.tracer)
-		//ctx = setWriter(ctx, w)
-
-		//otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(w.Header()))
+		v := httpx.Values{
+			TraceID: uuid.NewString(),
+			Now:     time.Now().UTC(),
+		}
+		ctx := context.WithValue(r.Context(), httpx.CtxKey, &v)
 
 		resp := handler(w, r)
 
