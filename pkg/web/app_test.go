@@ -254,3 +254,35 @@ func TestAppServeHTTP_OptionsRequest(t *testing.T) {
 		resp.Header.Get("Access-Control-Max-Age"),
 		"Preflight request should have correct Max-Age header")
 }
+
+func TestAppBuildPath(t *testing.T) {
+	testCases := []struct {
+		name     string
+		method   string
+		path     string
+		prefix   string
+		expected string
+	}{
+		{
+			name:     "No Prefix Test",
+			method:   http.MethodGet,
+			path:     "/burrito",
+			prefix:   "",
+			expected: "GET /burrito",
+		},
+		{
+			name:     "Prefix Test",
+			method:   http.MethodPost,
+			path:     "/burrito",
+			prefix:   "/taco",
+			expected: "POST /taco/burrito",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			path := buildPath(tc.method, tc.path, tc.prefix)
+			assert.Equal(t, tc.expected, path)
+		})
+	}
+}

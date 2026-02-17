@@ -13,6 +13,7 @@ type App struct {
 	mux     *http.ServeMux
 	mw      []httpx.Middleware
 	origins []string
+	prefix  string
 }
 
 func NewApp(log *logx.Logger, mw ...httpx.Middleware) *App {
@@ -21,6 +22,10 @@ func NewApp(log *logx.Logger, mw ...httpx.Middleware) *App {
 		mux: http.NewServeMux(),
 		mw:  mw,
 	}
+}
+
+func (a *App) WithPrefix(prefix string) {
+	a.prefix = prefix
 }
 
 func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -51,10 +56,14 @@ func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	a.mux.ServeHTTP(w, r)
 }
 
+func (a *App) Group(prefix string, mw ...httpx.Middleware) {
+
+}
+
 func (a *App) HandleFunc(method string, path string, handler httpx.HandlerFunc, mw ...httpx.Middleware) {
 	handler = httpx.Wrap(mw, handler)
 	handler = httpx.Wrap(a.mw, handler)
-	path = fmt.Sprintf("%s %s", method, path)
+	path = buildPath(method, path, a.prefix)
 
 	h := func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -82,3 +91,10 @@ func (a *App) WithCORS(origins ...string) {
 	a.tracer = tracer
 }
 */
+
+func buildPath(method string, path string, prefix string) string {
+	if prefix != "" {
+		path = prefix + path
+	}
+	return fmt.Sprintf("%s %s", method, path)
+}
