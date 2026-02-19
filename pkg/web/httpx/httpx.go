@@ -3,6 +3,7 @@ package httpx
 import (
 	"context"
 	"net/http"
+	"path/filepath"
 )
 
 type Response struct {
