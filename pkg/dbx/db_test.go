@@ -166,6 +166,111 @@ func (s *DBTestSuite) TestInsert_Integration() {
 	s.Require().Equal("Europe/London", u.Properties.Preferences.TimeZone)
 }
 
+func (s *DBTestSuite) TestInsertReturning_Integration() {
+	uid := uuid.New()
+	nu := User{
+		UUID:  uid,
+		Name:  "TestInsertReturning_Integration",
+		Email: "TestInsertReturning_Integration",
+		Address: Address{
+			Street: "1st street",
+			Zip:    "12345",
+			City:   "Detroit",
+			State:  "Michigan",
+		},
+		Properties: Properties{
+			Married: true,
+			Preferences: Preferences{
+				DarkMode: true,
+				Language: "en",
+				TimeZone: "America/Detroit",
+			},
+		},
+	}
+
+	var dest User
+	err := ExecReturn[User, User](s.T().Context(), s.db.Pool(), `
+		INSERT INTO users (uuid, name, email, address, properties) 
+			VALUES (@uuid, @name, @email, @address, @properties)
+		RETURNING *
+	`, &dest, nu)
+	s.Require().NoError(err)
+	s.Require().Equal("TestInsertReturning_Integration", dest.Name)
+	s.Require().Equal("Detroit", dest.Address.City)
+	s.Require().Equal("America/Detroit", dest.Properties.Preferences.TimeZone)
+
+	var u User
+	err = QueryOne[User](s.T().Context(), s.db.Pool(), "SELECT * FROM users WHERE uuid=@uuid", &u, pgx.NamedArgs{"uuid": uid})
+	s.Require().NoError(err)
+	s.Require().Equal("TestInsertReturning_Integration", u.Name)
+	s.Require().Equal("Detroit", u.Address.City)
+	s.Require().Equal("America/Detroit", u.Properties.Preferences.TimeZone)
+}
+
+/*func (s *DBTestSuite) TestInsertReturningMultiple_Integration() {
+	uid := uuid.New()
+	uid2 := uuid.New()
+	nus := []User{
+		{
+			UUID:  uid,
+			Name:  "TestInsertReturningMultiple_Integration",
+			Email: "TestInsertReturningMultiple_Integration",
+			Address: Address{
+				Street: "2nd street",
+				Zip:    "12345",
+				City:   "Livonia",
+				State:  "Michigan",
+			},
+			Properties: Properties{
+				Married: true,
+				Preferences: Preferences{
+					DarkMode: true,
+					Language: "en",
+					TimeZone: "America/Detroit",
+				},
+			},
+		},
+		{
+			UUID:  uid2,
+			Name:  "TestInsertReturningMultiple_Integration2",
+			Email: "TestInsertReturningMultiple_Integration2",
+			Address: Address{
+				Street: "3rd street",
+				Zip:    "12345",
+				City:   "Troy",
+				State:  "Michigan",
+			},
+			Properties: Properties{
+				Married: true,
+				Preferences: Preferences{
+					DarkMode: true,
+					Language: "en",
+					TimeZone: "America/New York",
+				},
+			},
+		},
+	}
+
+	var dest []User
+	err := ExecReturnMany[User, User](s.T().Context(), s.db.Pool(), `
+		INSERT INTO users (uuid, name, email, address, properties)
+			VALUES (@uuid1, @name1, @email1, @address1, @properties1)
+				   (@uuid2, @name2, @email2, @address2, @properties2)
+		RETURNING *
+	`, dest, nus)
+	s.Require().NoError(err)
+	s.Require().Equal("TestInsertReturning_Integration", dest[0].Name)
+	s.Require().Equal("Detroit", dest[0].Address.City)
+	s.Require().Equal("America/Detroit", dest[0].Properties.Preferences.TimeZone)
+
+	var u User
+	err = QueryOne[User](s.T().Context(), s.db.Pool(), "SELECT * FROM users WHERE uuid=@uuid", &u, pgx.NamedArgs{"uuid": uid})
+	s.Require().NoError(err)
+	s.Require().Equal("TestInsertReturning_Integration", u.Name)
+	s.Require().Equal("Detroit", u.Address.City)
+	s.Require().Equal("America/Detroit", u.Properties.Preferences.TimeZone)
+}*/
+
 func (s *DBTestSuite) TestUpdate_Integration() {
 	uid := uuid.New()
 	nu := User{

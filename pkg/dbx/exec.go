@@ -44,7 +44,7 @@ func ExecReturn[S any, D any](ctx context.Context, d queriers.Querier, sql strin
 
 // ExecReturnMany functions the same as ExecReturn where a SQL statement is expected to return data that
 // needs to be mapped to a struct. The difference is multiple rows are expected and are returned as a slice.
-func ExecReturnMany[S any, D any](ctx context.Context, d queriers.Querier, sql string, dest []D, args S) error {
+/*func ExecReturnMany[S any, D any](ctx context.Context, d queriers.Querier, sql string, dest []D, args []S) error {
 	namedArgs, err := StructToNamedArgs(args)
 	rows, err := d.Query(ctx, sql, namedArgs)
 	if err != nil {
@@ -59,7 +59,7 @@ func ExecReturnMany[S any, D any](ctx context.Context, d queriers.Querier, sql s
 		return fmt.Errorf("pgx.CollectRows: %w", err)
 	}
 	return nil
-}
+}*/
 
 func AdvisoryTransactionLock[T any](ctx context.Context, tx pgx.Tx, id int) error {
 	_, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", id)
