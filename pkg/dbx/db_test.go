@@ -308,6 +308,45 @@ func (s *DBTestSuite) TestTransactionRollback_Integration() {
 	s.Require().ErrorIs(err, pgx.ErrNoRows)
 }
 
+func (s *DBTestSuite) TestStructToNamedArgs() {
+	uid := uuid.New()
+	u := User{
+		UUID:  uid,
+		Name:  "Bob Transaction Rollback",
+		Email: "bob@gmail.com",
+		Address: Address{
+			Street: "main street",
+			Zip:    "56456",
+			City:   "Portland",
+			State:  "Oregon",
+		},
+		Properties: Properties{
+			Married: true,
+			Preferences: Preferences{
+				DarkMode: true,
+				Language: "en",
+				TimeZone: "Europe/London",
+			},
+		},
+	}
+
+	na, err := StructToNamedArgs(u)
+	s.Require().NoError(err)
+	s.Require().Equal(na["name"], "Bob Transaction Rollback")
+
+	e, ok := na["uuid"].(uuid.UUID)
+	s.Require().True(ok)
+	s.Require().Equal(e.String(), uid.String())
+
+	e2, ok := na["address"].(Address)
+	s.Require().True(ok)
+	s.Require().Equal(e2.Street, "main street")
+
+	e3, ok := na["properties"].(Properties)
+	s.Require().True(ok)
+	s.Require().Equal(e3.Preferences.TimeZone, "Europe/London")
+}
+
 /*
  * Setup
 	   ____    __

@@ -3,6 +3,7 @@ package dbx
 import (
 	"context"
 	"fmt"
+
 	"github.com/jwbonnell/go-libs/pkg/dbx/queriers"
 
 	"github.com/jackc/pgx/v5"
@@ -12,7 +13,7 @@ import (
 func QueryOne[T any](ctx context.Context, q queriers.Querier, sql string, dest *T, namedArgs pgx.NamedArgs) error {
 	rows, err := q.Query(ctx, sql, namedArgs)
 	if err != nil {
-		return fmt.Errorf("query: %w", err)
+		return fmt.Errorf("dbx.Querier.Query: %w", err)
 	}
 	defer rows.Close()
 
@@ -21,7 +22,7 @@ func QueryOne[T any](ctx context.Context, q queriers.Querier, sql string, dest *
 	var got []T
 	got, err = pgx.CollectRows(rows, pgx.RowToStructByName[T])
 	if err != nil {
-		return fmt.Errorf("collect row: %w", err)
+		return fmt.Errorf("pgx.CollectRows: %w", err)
 	}
 	if len(got) == 0 {
 		return pgx.ErrNoRows
@@ -34,13 +35,13 @@ func QueryOne[T any](ctx context.Context, q queriers.Querier, sql string, dest *
 func Query[T any](ctx context.Context, q queriers.Querier, sql string, dest *[]T, namedArgs pgx.NamedArgs) error {
 	rows, err := q.Query(ctx, sql, namedArgs)
 	if err != nil {
-		return fmt.Errorf("query named: %w", err)
+		return fmt.Errorf("dbx.Querier.Query: %w", err)
 	}
 	defer rows.Close()
 
 	vals, err := pgx.CollectRows(rows, pgx.RowToStructByName[T])
 	if err != nil {
-		return fmt.Errorf("collect rows: %w", err)
+		return fmt.Errorf("pgx.CollectRows: %w", err)
 	}
 	*dest = vals
 	return nil

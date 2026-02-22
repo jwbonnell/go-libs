@@ -2,8 +2,9 @@ package dbx
 
 import (
 	"fmt"
-	"github.com/jackc/pgx/v5"
 	"reflect"
+
+	"github.com/jackc/pgx/v5"
 )
 
 func StructToNamedArgs(s interface{}) (pgx.NamedArgs, error) {
