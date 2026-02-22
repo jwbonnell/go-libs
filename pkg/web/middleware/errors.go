@@ -9,9 +9,10 @@ import (
 	"github.com/jwbonnell/go-libs/pkg/web/httpx"
 )
 
-// Errors handles errors coming out of the call chain. It detects normal
-// application errors which are used to respond to the client in a uniform way.
-// Unexpected errors (status >= 500) are logged.
+// Errors middleware handles errors that bubble up from the next middleware or handler.
+// By default, errors are intercepted and replaced with generic HTTP statuses and error messages
+// to avoid leaking API implementation details. TrustedErrors are an opt-in way to return error information
+// to the API consumer.
 func Errors(log *logx.Logger) httpx.Middleware {
 	m := func(next httpx.HandlerFunc) httpx.HandlerFunc {
 		h := func(w http.ResponseWriter, r *http.Request) httpx.Response {
@@ -27,22 +28,24 @@ func Errors(log *logx.Logger) httpx.Middleware {
 
 				log.Info(ctx, "request error", "trace_id", v.TraceID, "statuscode", resp.StatusCode, "error", resp.Err, "method", r.Method, "path", path)
 
-				var errResp httpx.Response
+				var statusCode = resp.StatusCode
+				if statusCode < 400 {
+					statusCode = http.StatusInternalServerError //force an error status
+				}
+
 				switch {
 				case httpx.IsTrustedError(resp.Err):
 					te := httpx.GetTrustedError(resp.Err)
 					return httpx.ErrorResponse(
 						errors.New(te.Msg),
-						resp.StatusCode,
+						statusCode,
 					)
 				default:
-					errResp = httpx.ErrorResponse(
+					return httpx.ErrorResponse(
 						errors.New(http.StatusText(http.StatusInternalServerError)),
-						http.StatusInternalServerError,
+						statusCode,
 					)
 				}
-
-				return errResp
 			}
 
 			return resp
