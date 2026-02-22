@@ -1,10 +1,10 @@
-package db
+package dbx
 
 import (
 	"context"
 	"fmt"
 	"github.com/jackc/pgx/v5"
-	"github.com/jwbonnell/go-libs/pkg/db/queriers"
+	"github.com/jwbonnell/go-libs/pkg/dbx/queriers"
 )
 
 func Exec[T any](ctx context.Context, d queriers.Querier, sql string, args T) error {

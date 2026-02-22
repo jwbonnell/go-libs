@@ -9,7 +9,7 @@ COLORIZE := sed -E \
 test: test_pkg_db test_pkg_logx test_pkg_web test_pkg_mapper
 
 test_pkg_db:
-	go test -v ./pkg/db/... 2>&1 | $(COLORIZE)
+	go test -v ./pkg/dbx/... 2>&1 | $(COLORIZE)
 
 test_pkg_web:
 	go test -v ./pkg/web/... 2>&1 | $(COLORIZE)

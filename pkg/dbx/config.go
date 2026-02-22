@@ -1,4 +1,4 @@
-package db
+package dbx
 
 type ConnectionConfig struct {
 	User         string

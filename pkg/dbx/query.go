@@ -1,9 +1,9 @@
-package db
+package dbx
 
 import (
 	"context"
 	"fmt"
-	"github.com/jwbonnell/go-libs/pkg/db/queriers"
+	"github.com/jwbonnell/go-libs/pkg/dbx/queriers"
 
 	"github.com/jackc/pgx/v5"
 )

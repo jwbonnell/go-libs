@@ -1,4 +1,4 @@
-package db
+package dbx
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/jwbonnell/go-libs/pkg/db/queriers"
+	"github.com/jwbonnell/go-libs/pkg/dbx/queriers"
 	"github.com/jwbonnell/go-libs/pkg/logx"
 
 	"github.com/jackc/pgx/v5/pgxpool"
