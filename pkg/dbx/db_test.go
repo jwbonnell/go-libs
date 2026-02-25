@@ -152,7 +152,7 @@ func (s *DBTestSuite) TestInsert_Integration() {
 		},
 	}
 
-	err := Exec[User](s.T().Context(), s.db.Pool(), `
+	err := Exec(s.T().Context(), s.db.Pool(), `
 		INSERT INTO users (uuid, name, email, address, properties) 
 			VALUES (@uuid, @name, @email, @address, @properties)
 	`, nu)
@@ -189,7 +189,7 @@ func (s *DBTestSuite) TestInsertReturning_Integration() {
 	}
 
 	var dest User
-	err := ExecReturn[User, User](s.T().Context(), s.db.Pool(), `
+	err := ExecReturn[User](s.T().Context(), s.db.Pool(), `
 		INSERT INTO users (uuid, name, email, address, properties) 
 			VALUES (@uuid, @name, @email, @address, @properties)
 		RETURNING *
@@ -252,7 +252,7 @@ func (s *DBTestSuite) TestInsertReturning_Integration() {
 	}
 
 	var dest []User
-	err := ExecReturnMany[User, User](s.T().Context(), s.db.Pool(), `
+	err := ExecReturnMany[User](s.T().Context(), s.db.Pool(), `
 		INSERT INTO users (uuid, name, email, address, properties)
 			VALUES (@uuid1, @name1, @email1, @address1, @properties1)
 				   (@uuid2, @name2, @email2, @address2, @properties2)
@@ -293,7 +293,7 @@ func (s *DBTestSuite) TestUpdate_Integration() {
 		},
 	}
 
-	err := Exec[User](s.T().Context(), s.db.Pool(), `
+	err := Exec(s.T().Context(), s.db.Pool(), `
 		INSERT INTO users (uuid, name, email, address, properties) 
 			VALUES (@uuid, @name, @email, @address, @properties)
 	`, nu)
@@ -307,7 +307,7 @@ func (s *DBTestSuite) TestUpdate_Integration() {
 	s.Require().Equal("Europe/London", u.Properties.Preferences.TimeZone)
 
 	nu.Name = "Bob Update Test After"
-	err = Exec[User](s.T().Context(), s.db.Pool(), `
+	err = Exec(s.T().Context(), s.db.Pool(), `
 		UPDATE users SET name=@name 
 			WHERE uuid=@uuid
 	`, nu)
@@ -344,7 +344,7 @@ func (s *DBTestSuite) TestTransactionCommit_Integration() {
 	tx, err := s.db.Pool().Begin(s.T().Context())
 	s.Require().NoError(err)
 
-	err = Exec[User](s.T().Context(), tx, `
+	err = Exec(s.T().Context(), tx, `
 		INSERT INTO users (uuid, name, email, address, properties) 
 			VALUES (@uuid, @name, @email, @address, @properties)
 	`, nu)
@@ -392,7 +392,7 @@ func (s *DBTestSuite) TestTransactionRollback_Integration() {
 	tx, err := s.db.Pool().Begin(s.T().Context())
 	s.Require().NoError(err)
 
-	err = Exec[User](s.T().Context(), tx, `
+	err = Exec(s.T().Context(), tx, `
 		INSERT INTO users (uuid, name, email, address, properties) 
 			VALUES (@uuid, @name, @email, @address, @properties)
 	`, nu)

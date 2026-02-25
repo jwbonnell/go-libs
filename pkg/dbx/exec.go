@@ -10,7 +10,7 @@ import (
 
 // Exec is a thin wrapper around pgx.Exec that supports passing in generic struct args and they
 // are automatically converted to pgx.NamedArgs
-func Exec[T any](ctx context.Context, d queriers.Querier, sql string, args T) error {
+func Exec(ctx context.Context, d queriers.Querier, sql string, args interface{}) error {
 	namedArgs, err := StructToNamedArgs(args)
 	_, err = d.Exec(ctx, sql, namedArgs)
 	if err != nil {
@@ -20,7 +20,7 @@ func Exec[T any](ctx context.Context, d queriers.Querier, sql string, args T) er
 }
 
 // ExecReturn executes a SQL statement is expected to return a single row that needs to be mapped to a struct.
-func ExecReturn[S any, D any](ctx context.Context, d queriers.Querier, sql string, dest *D, args S) error {
+func ExecReturn[D any](ctx context.Context, d queriers.Querier, sql string, dest *D, args interface{}) error {
 	namedArgs, err := StructToNamedArgs(args)
 	rows, err := d.Query(ctx, sql, namedArgs)
 	if err != nil {
@@ -44,7 +44,7 @@ func ExecReturn[S any, D any](ctx context.Context, d queriers.Querier, sql strin
 
 // ExecReturnMany functions the same as ExecReturn where a SQL statement is expected to return data that
 // needs to be mapped to a struct. The difference is multiple rows are expected and are returned as a slice.
-/*func ExecReturnMany[S any, D any](ctx context.Context, d queriers.Querier, sql string, dest []D, args []S) error {
+/*func ExecReturnMany[D any](ctx context.Context, d queriers.Querier, sql string, dest []D, args []interface{}) error {
 	namedArgs, err := StructToNamedArgs(args)
 	rows, err := d.Query(ctx, sql, namedArgs)
 	if err != nil {
