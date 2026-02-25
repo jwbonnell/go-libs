@@ -8,6 +8,11 @@ import (
 )
 
 func StructToNamedArgs(s interface{}) (pgx.NamedArgs, error) {
+	if s, ok := s.(pgx.NamedArgs); ok {
+		//Check if pgx.NamedArgs was already passed in and return if so.
+		return s, nil
+	}
+
 	namedArgs := make(pgx.NamedArgs)
 	val := reflect.ValueOf(s)
 

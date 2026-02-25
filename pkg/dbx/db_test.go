@@ -452,6 +452,21 @@ func (s *DBTestSuite) TestStructToNamedArgs() {
 	s.Require().Equal(e3.Preferences.TimeZone, "Europe/London")
 }
 
+func (s *DBTestSuite) TestNamedArgsToStruct() {
+	u := uuid.New()
+	namedArgs := pgx.NamedArgs{
+		"uuid":   u,
+		"name":   "TestNamedArgsToStruct",
+		"number": 8,
+	}
+
+	args, err := StructToNamedArgs(namedArgs)
+	s.Require().NoError(err)
+	s.Require().Equal(args["uuid"], u)
+	s.Require().Equal(args["name"], namedArgs["name"])
+	s.Require().Equal(args["number"], namedArgs["number"])
+}
+
 /*
  * Setup
 	   ____    __
