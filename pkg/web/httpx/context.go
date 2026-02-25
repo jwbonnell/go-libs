@@ -28,7 +28,7 @@ func GetValues(ctx context.Context) *Values {
 	return v
 }
 
-func SetStatusCode(ctx context.Context, statusCode int) {
+func SetContextStatusCode(ctx context.Context, statusCode int) {
 	v, ok := ctx.Value(CtxKey).(*Values)
 	if !ok {
 		return

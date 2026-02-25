@@ -15,10 +15,10 @@ import (
 // to the API consumer.
 func Errors(log *logx.Logger) httpx.Middleware {
 	m := func(next httpx.HandlerFunc) httpx.HandlerFunc {
-		h := func(w http.ResponseWriter, r *http.Request) httpx.Response {
+		h := func(w http.ResponseWriter, r *http.Request) httpx.Responder {
 			ctx := r.Context()
 			resp := next(w, r)
-			if resp.Err != nil {
+			if resp.Error() != nil {
 				v := httpx.GetValues(ctx)
 
 				path := r.URL.Path
@@ -26,16 +26,16 @@ func Errors(log *logx.Logger) httpx.Middleware {
 					path = fmt.Sprintf("%s?%s", path, r.URL.RawQuery)
 				}
 
-				log.Info(ctx, "request error", "trace_id", v.TraceID, "statuscode", resp.StatusCode, "error", resp.Err, "method", r.Method, "path", path)
+				log.Info(ctx, "request error", "trace_id", v.TraceID, "statuscode", resp.Status(), "error", resp.Error(), "method", r.Method, "path", path)
 
-				var statusCode = resp.StatusCode
+				var statusCode = resp.Status()
 				if statusCode < 400 {
 					statusCode = http.StatusInternalServerError //force an error status
 				}
 
 				switch {
-				case httpx.IsTrustedError(resp.Err):
-					te := httpx.GetTrustedError(resp.Err)
+				case httpx.IsTrustedError(resp.Error()):
+					te := httpx.GetTrustedError(resp.Error())
 					return httpx.ErrorResponse(
 						errors.New(te.Msg),
 						statusCode,

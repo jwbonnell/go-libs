@@ -11,10 +11,10 @@ import (
 
 func Logger(log *logx.Logger) httpx.Middleware {
 	m := func(next httpx.HandlerFunc) httpx.HandlerFunc {
-		h := func(w http.ResponseWriter, r *http.Request) httpx.Response {
+		h := func(w http.ResponseWriter, r *http.Request) httpx.Responder {
 			resp := next(w, r)
 
-			if resp.Err == nil {
+			if resp.Error() == nil {
 				ctx := r.Context()
 				v := httpx.GetValues(ctx)
 
@@ -24,7 +24,7 @@ func Logger(log *logx.Logger) httpx.Middleware {
 				}
 
 				log.Info(ctx, "request completed", "trace_id", v.TraceID, "method", r.Method, "path", path,
-					"remoteaddr", r.RemoteAddr, "statuscode", resp.StatusCode, "since", time.Since(v.Now))
+					"remoteaddr", r.RemoteAddr, "statuscode", resp.Status(), "since", time.Since(v.Now))
 			}
 
 			return resp

@@ -74,7 +74,7 @@ func (a *App) HandleFunc(method string, path string, handler httpx.HandlerFunc, 
 
 		resp := handler(w, r)
 
-		if err := httpx.Respond(ctx, w, resp); err != nil {
+		if err := resp.Respond(ctx, w, r); err != nil {
 			a.log.Info(ctx, "web-respond", "ERROR", err)
 			return
 		}

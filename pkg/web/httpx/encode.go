@@ -7,14 +7,13 @@ import (
 )
 
 type Encoder interface {
-	Encode(data any) (encoded []byte, contentType string, err error)
+	Encode(data any) (encoded []byte, err error)
 }
 
 type (
 	PlainTextEncoder struct{}
 	JSONEncoder      struct{}
 	XMLEncoder       struct{}
-	FileEncoder      struct{}
 )
 
 func NewEncoder(id string) Encoder {
@@ -26,33 +25,26 @@ func NewEncoder(id string) Encoder {
 		e = &JSONEncoder{}
 	case "xml":
 		e = &XMLEncoder{}
-	case "file":
-		e = &FileEncoder{}
 	default:
 		return nil
 	}
 	return e
 }
 
-func (e *PlainTextEncoder) Encode(data any) ([]byte, string, error) {
+func (e *PlainTextEncoder) Encode(data any) ([]byte, error) {
 	str, ok := data.(string)
 	if !ok {
-		return nil, "", fmt.Errorf("encoder data is not a string")
+		return nil, fmt.Errorf("encoder data is not a string")
 	}
-	return []byte(str), "text/plain", nil
+	return []byte(str), nil
 }
 
-func (e *JSONEncoder) Encode(data any) ([]byte, string, error) {
+func (e *JSONEncoder) Encode(data any) ([]byte, error) {
 	enc, err := json.Marshal(data)
-	return enc, "application/json", err
+	return enc, err
 }
 
-func (e *XMLEncoder) Encode(data any) ([]byte, string, error) {
+func (e *XMLEncoder) Encode(data any) ([]byte, error) {
 	enc, err := xml.Marshal(data)
-	return enc, "application/xml", err
-}
-
-func (e *FileEncoder) Encode(data any) ([]byte, string, error) {
-	//TODO
-	return []byte{}, "", nil
+	return enc, err
 }

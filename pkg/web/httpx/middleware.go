@@ -4,7 +4,7 @@ import (
 	"net/http"
 )
 
-type HandlerFunc func(http.ResponseWriter, *http.Request) Response
+type HandlerFunc func(http.ResponseWriter, *http.Request) Responder
 type Middleware func(HandlerFunc) HandlerFunc
 
 func Wrap(mw []Middleware, h HandlerFunc) HandlerFunc {

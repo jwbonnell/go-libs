@@ -19,9 +19,8 @@ type sample struct {
 func TestJSONEncoder_Success(t *testing.T) {
 	e := &JSONEncoder{}
 	s := sample{Name: "Alice", Age: 30}
-	data, contextType, err := e.Encode(s)
+	data, err := e.Encode(s)
 	require.NoError(t, err)
-	require.Equal(t, contextType, "application/json")
 
 	// decode body and compare
 	var got sample
@@ -33,9 +32,8 @@ func TestJSONEncoder_Success(t *testing.T) {
 func TestXMLEncoder_Success(t *testing.T) {
 	e := &XMLEncoder{}
 	s := sample{Name: "Bob", Age: 42}
-	data, contextType, err := e.Encode(s)
+	data, err := e.Encode(s)
 	require.NoError(t, err)
-	require.Equal(t, contextType, "application/xml")
 
 	// decode body and compare
 	var got sample
@@ -46,17 +44,15 @@ func TestXMLEncoder_Success(t *testing.T) {
 
 func TestPlainTextEncoder_Success(t *testing.T) {
 	e := &PlainTextEncoder{}
-	data, contextType, err := e.Encode("something")
+	data, err := e.Encode("something")
 	require.NoError(t, err)
-	require.Equal(t, contextType, "text/plain")
 	require.Equal(t, string(data), "something")
 }
 
 func TestPlainTextEncoder_Error(t *testing.T) {
 	e := &PlainTextEncoder{}
-	data, contextType, err := e.Encode(struct{ Name string }{Name: "Z"})
+	data, err := e.Encode(struct{ Name string }{Name: "Z"})
 	require.Error(t, err)
-	require.Equal(t, contextType, "")
 	require.Equal(t, "encoder data is not a string", err.Error())
 	require.Nil(t, data)
 }
@@ -67,9 +63,8 @@ func TestEncoders_BasicOutputChecks(t *testing.T) {
 	j := &JSONEncoder{}
 	x := &XMLEncoder{}
 
-	data, contentType, err := j.Encode(map[string]string{"k": "v"})
+	data, err := j.Encode(map[string]string{"k": "v"})
 	require.NoError(t, err)
-	require.Equal(t, "application/json", contentType)
 	require.True(t, json.Valid(data))
 
 	// Use a struct for XML (maps unsupported)
@@ -79,9 +74,8 @@ func TestEncoders_BasicOutputChecks(t *testing.T) {
 		V       string   `xml:"v"`
 	}
 
-	data, contentType, err = x.Encode(kv{K: "k", V: "v"})
+	data, err = x.Encode(kv{K: "k", V: "v"})
 	require.NoError(t, err)
-	require.Equal(t, "application/xml", contentType)
 
 	// parse to ensure valid XML
 	dec := xml.NewDecoder(bytes.NewReader(data))

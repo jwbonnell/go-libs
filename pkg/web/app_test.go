@@ -1,6 +1,7 @@
 package web
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -30,7 +31,7 @@ func TestServeHTTP_HSTSHeaderAndDelegate(t *testing.T) {
 	app := NewApp(logger)
 
 	// Register a handler
-	app.HandleFunc("GET", "/ping", func(w http.ResponseWriter, r *http.Request) httpx.Response {
+	app.HandleFunc("GET", "/ping", func(w http.ResponseWriter, r *http.Request) httpx.Responder {
 		return httpx.PlainTextResponse(http.StatusOK, "pong")
 	})
 
@@ -50,37 +51,34 @@ func TestHandleFunc_MiddlewareOrderAndRespondCalled(t *testing.T) {
 
 	// app-level middleware writes "A"
 	appMw := func(next httpx.HandlerFunc) httpx.HandlerFunc {
-		return func(w http.ResponseWriter, r *http.Request) httpx.Response {
+		return func(w http.ResponseWriter, r *http.Request) httpx.Responder {
 			resp := next(w, r)
-			raw, ok := resp.Data.(string)
-			if !ok {
-				require.Fail(t, "expected response data to be a string")
-			}
-			resp.Data = "A" + raw
-			return resp
+			err := "A" + resp.Error().Error()
+			return httpx.ErrorResponse(
+				errors.New(err),
+				http.StatusInternalServerError,
+			)
 		}
 	}
 
 	// route middleware writes "R"
 	routeMw := func(next httpx.HandlerFunc) httpx.HandlerFunc {
-		return func(w http.ResponseWriter, r *http.Request) httpx.Response {
+		return func(w http.ResponseWriter, r *http.Request) httpx.Responder {
 			resp := next(w, r)
-			raw, ok := resp.Data.(string)
-			if !ok {
-				require.Fail(t, "expected response data to be a string")
-			}
-			resp.Data = "R" + raw
-			return resp
+			err := "R" + resp.Error().Error()
+			return httpx.ErrorResponse(
+				errors.New(err),
+				http.StatusInternalServerError,
+			)
 		}
 	}
 
 	// handler writes "H" and returns nil response
-	handler := func(w http.ResponseWriter, r *http.Request) httpx.Response {
-		return httpx.Response{
-			StatusCode: http.StatusOK,
-			Encoder:    &httpx.PlainTextEncoder{},
-			Data:       "H",
-		}
+	handler := func(w http.ResponseWriter, r *http.Request) httpx.Responder {
+		return httpx.ErrorResponse(
+			errors.New("H"),
+			http.StatusInternalServerError,
+		)
 	}
 
 	// set app-level middleware by creating new app with it
@@ -106,13 +104,13 @@ func TestWithCORS_SetsOrigins(t *testing.T) {
 
 func TestHandleFunc_RespondErrorLogged(t *testing.T) {
 	// This test ensures that when httpx.Respond returns an error, the app logs it.
-	// We create a handler that returns a non-nil httpx.Response which causes httpx.Respond to error.
+	// We create a handler that returns a non-nil httpx.Responder which causes httpx.Respond to error.
 	// Since httpx.Respond implementation may vary, this test focuses on exercising the error path
 	// by providing a handler that returns a custom response object that Respond will likely not handle.
 	logger := testLogger(t)
 	app := NewApp(logger)
 
-	handler := func(w http.ResponseWriter, r *http.Request) httpx.Response {
+	handler := func(w http.ResponseWriter, r *http.Request) httpx.Responder {
 		// write nothing and return a dummy non-nil response
 		return httpx.JSONResponse(http.StatusTeapot, "OK")
 	}

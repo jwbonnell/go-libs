@@ -13,60 +13,58 @@ import (
 
 func TestPanics_RecoverFromPanic(t *testing.T) {
 	mw := Panics()
-	panicker := httpx.HandlerFunc(func(w http.ResponseWriter, r *http.Request) httpx.Response {
+	panicker := httpx.HandlerFunc(func(w http.ResponseWriter, r *http.Request) httpx.Responder {
 		panic("boom")
 	})
 	h := mw(panicker)
 
 	w := httptest.NewRecorder()
 	resp := h(w, httptest.NewRequest("GET", "/", nil))
-	require.Error(t, resp.Err)
-	require.Contains(t, resp.Err.Error(), "boom")
-	require.Contains(t, resp.Err.Error(), "TRACE[")
-	require.Contains(t, resp.Err.Error(), "goroutine")
+	require.Error(t, resp.Error())
+	require.Contains(t, resp.Error().Error(), "boom")
+	require.Contains(t, resp.Error().Error(), "TRACE[")
+	require.Contains(t, resp.Error().Error(), "goroutine")
 }
 
 func TestPanics_PassThroughError(t *testing.T) {
 	mw := Panics()
 	want := errors.New("handler error")
-	bad := httpx.HandlerFunc(func(w http.ResponseWriter, r *http.Request) httpx.Response {
-		return httpx.Response{
-			Err: want,
-		}
+	bad := httpx.HandlerFunc(func(w http.ResponseWriter, r *http.Request) httpx.Responder {
+		return httpx.ErrorResponse(want, http.StatusInternalServerError)
 	})
 	h := mw(bad)
 
 	w := httptest.NewRecorder()
 	resp := h(w, httptest.NewRequest("GET", "/", nil))
-	require.Error(t, resp.Err)
-	require.Equal(t, resp.Err.Error(), want.Error())
+	require.Error(t, resp.Error())
+	require.Equal(t, resp.Error().Error(), want.Error())
 }
 
 func TestPanics_PassThroughNil(t *testing.T) {
 	mw := Panics()
-	ok := httpx.HandlerFunc(func(w http.ResponseWriter, r *http.Request) httpx.Response {
+	ok := httpx.HandlerFunc(func(w http.ResponseWriter, r *http.Request) httpx.Responder {
 		w.WriteHeader(http.StatusTeapot) // 418
 		_, _ = w.Write([]byte("ok"))
-		return httpx.Response{Err: nil}
+		return httpx.JSONResponse(http.StatusOK, "ok")
 	})
 	h := mw(ok)
 
 	w := httptest.NewRecorder()
 	resp := h(w, httptest.NewRequest("GET", "/", nil))
-	require.NoError(t, resp.Err)
+	require.NoError(t, resp.Error())
 	require.True(t, w.Code == http.StatusTeapot && w.Body.String() == "ok")
 }
 
 // simple handler that records it was called
-func okHandler(w http.ResponseWriter, r *http.Request) httpx.Response {
+func okHandler(w http.ResponseWriter, r *http.Request) httpx.Responder {
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("ok"))
-	return httpx.Response{Err: nil}
+	return httpx.JSONResponse(http.StatusOK, "ok")
 }
 
 func TestErrorMiddleware(t *testing.T) {
 	mw := Errors(logx.NewCILogger("unit-tests"))
-	ok := httpx.HandlerFunc(func(w http.ResponseWriter, r *http.Request) httpx.Response {
+	ok := httpx.HandlerFunc(func(w http.ResponseWriter, r *http.Request) httpx.Responder {
 		return httpx.ErrorResponse(
 			httpx.NewTrustedError("my trusted error", errors.New("internal error message")),
 			http.StatusTeapot,
@@ -76,6 +74,6 @@ func TestErrorMiddleware(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	resp := h(w, httptest.NewRequest("GET", "/", nil))
-	require.Error(t, resp.Err)
-	require.Equal(t, resp.Err.Error(), "my trusted error")
+	require.Error(t, resp.Error())
+	require.Equal(t, resp.Error().Error(), "my trusted error")
 }
