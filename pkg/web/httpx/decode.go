@@ -19,17 +19,20 @@ func Decode(r *http.Request, out any) error {
 		ct = strings.TrimSpace(ct[:i])
 	}
 
+	var err error
 	switch ct {
 	case "application/json", "application/vnd.api+json":
-		return decodeJSON(r.Body, out)
+		err = decodeJSON(r.Body, out)
 	case "application/xml", "text/xml", "application/rss+xml", "application/atom+xml":
-		return decodeXML(r.Body, out)
+		err = decodeXML(r.Body, out)
 	case "text/plain", "":
 		// allow empty Content-Type as plain text
-		return decodeText(r.Body, out)
+		err = decodeText(r.Body, out)
 	default:
 		return ErrUnsupportedContentType
 	}
+
+	return err
 }
 
 func decodeJSON(body io.Reader, out any) error {
