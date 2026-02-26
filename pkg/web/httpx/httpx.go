@@ -229,14 +229,16 @@ func (r StreamResponder) Respond(ctx context.Context, w http.ResponseWriter, _ *
 // RawResponder for complete control
 type RawResponder struct {
 	BaseResponder
-	Body    []byte
-	Headers map[string]string
+	Body        []byte
+	ContentType string
+	Headers     map[string]string
 }
 
-func RawResponse(statusCode int, body []byte) Responder {
+func RawResponse(statusCode int, body []byte, contentType string) Responder {
 	return RawResponder{
-		Body:    body,
-		Headers: make(map[string]string),
+		Body:        body,
+		ContentType: contentType,
+		Headers:     make(map[string]string),
 		BaseResponder: BaseResponder{
 			StatusCode: statusCode,
 		},
@@ -245,7 +247,7 @@ func RawResponse(statusCode int, body []byte) Responder {
 
 func (r RawResponder) Respond(ctx context.Context, w http.ResponseWriter, _ *http.Request) error {
 	SetContextStatusCode(ctx, r.StatusCode)
-
+	w.Header().Set("Content-Type", r.ContentType)
 	for k, v := range r.Headers {
 		w.Header().Set(k, v)
 	}
