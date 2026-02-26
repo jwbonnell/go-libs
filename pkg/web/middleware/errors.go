@@ -41,8 +41,13 @@ func Errors(log *logx.Logger) httpx.Middleware {
 						statusCode,
 					)
 				default:
+					statusText := http.StatusText(statusCode)
+					if statusText == "" {
+						statusText = http.StatusText(http.StatusInternalServerError)
+					}
+
 					return httpx.ErrorResponse(
-						errors.New(http.StatusText(http.StatusInternalServerError)),
+						errors.New(statusText),
 						statusCode,
 					)
 				}
