@@ -56,9 +56,10 @@ func ErrorResponseWithContentType(err error, statusCode int, contentType string)
 	}
 }
 
-func (er ErrorResponder) Respond(ctx context.Context, w http.ResponseWriter, req *http.Request) error {
+func (r ErrorResponder) Respond(ctx context.Context, w http.ResponseWriter, req *http.Request) error {
+	SetContextStatusCode(ctx, r.StatusCode)
 	var encoder Encoder
-	switch er.ContentType {
+	switch r.ContentType {
 	case "application/json":
 		encoder = NewEncoder("json")
 	case "application/xml":
@@ -68,7 +69,8 @@ func (er ErrorResponder) Respond(ctx context.Context, w http.ResponseWriter, req
 		encoder = NewEncoder("plaintext")
 	}
 
-	data, err := encoder.Encode(er.Error().Error())
+	w.WriteHeader(r.StatusCode)
+	data, err := encoder.Encode(r.Error().Error())
 	if err != nil {
 		return err
 	}
