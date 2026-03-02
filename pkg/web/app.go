@@ -2,7 +2,6 @@ package web
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -60,10 +59,18 @@ func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	a.mux.ServeHTTP(w, r)
 }
 
+func (a *App) Group(prefix string, mw ...httpx.Middleware) *Group {
+	return &Group{
+		app:    a,
+		prefix: httpx.JoinPaths(a.prefix, prefix),
+		mw:     mw,
+	}
+}
+
 func (a *App) HandleFunc(method string, path string, handler httpx.HandlerFunc, mw ...httpx.Middleware) {
-	handler = httpx.Wrap(mw, handler)
-	handler = httpx.Wrap(a.mw, handler)
-	path = buildPath(method, path, a.prefix)
+	handler = httpx.Wrap(mw, handler)   // route level mw
+	handler = httpx.Wrap(a.mw, handler) // app level mw
+	fullPath := httpx.BuildPath(method, httpx.JoinPaths(a.prefix, path))
 
 	h := func(w http.ResponseWriter, r *http.Request) {
 		v := httpx.Values{
@@ -80,7 +87,7 @@ func (a *App) HandleFunc(method string, path string, handler httpx.HandlerFunc, 
 		}
 	}
 
-	a.mux.HandleFunc(path, h)
+	a.mux.HandleFunc(fullPath, h)
 }
 
 func (a *App) WithCORS(origins ...string) {
@@ -91,10 +98,3 @@ func (a *App) WithCORS(origins ...string) {
 	a.tracer = tracer
 }
 */
-
-func buildPath(method string, path string, prefix string) string {
-	if prefix != "" {
-		path = prefix + path
-	}
-	return fmt.Sprintf("%s %s", method, path)
-}

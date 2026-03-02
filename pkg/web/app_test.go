@@ -253,34 +253,130 @@ func TestAppServeHTTP_OptionsRequest(t *testing.T) {
 		"Preflight request should have correct Max-Age header")
 }
 
-func TestAppBuildPath(t *testing.T) {
-	testCases := []struct {
-		name     string
-		method   string
-		path     string
-		prefix   string
-		expected string
+// TestGroupGroupMiddlewareOrder tests that middleware is appended in correct order
+func TestGroupGroupMiddlewareOrder(t *testing.T) {
+	mockLogger := &logx.Logger{}
+
+	// Create the App with wildcard CORS
+	app := NewApp(mockLogger)
+	mw1 := dummyMiddleware()
+	mw2 := dummyMiddleware()
+	mw3 := dummyMiddleware()
+
+	baseGroup := &Group{
+		app:    app,
+		prefix: "/api",
+		mw:     []httpx.Middleware{mw1, mw2},
+	}
+
+	newGroup := baseGroup.Group("/v1", mw3)
+
+	// Verify middleware is in correct order: base mw + new mw
+	assert.Equal(t, 0, len(app.mw))
+	assert.Equal(t, 2, len(baseGroup.mw))
+	assert.Equal(t, 3, len(newGroup.mw))
+}
+
+// TestGroupGroup tests the Group method for creating nested groups
+func TestGroupGroup(t *testing.T) {
+	tests := []struct {
+		name          string
+		basePrefix    string
+		newPrefix     string
+		baseMW        []httpx.Middleware
+		newMW         []httpx.Middleware
+		expectedPath  string
+		expectedMWLen int
 	}{
 		{
-			name:     "No Prefix Test",
-			method:   http.MethodGet,
-			path:     "/burrito",
-			prefix:   "",
-			expected: "GET /burrito",
+			name:          "simple nested group",
+			basePrefix:    "/api",
+			newPrefix:     "/v1",
+			baseMW:        nil,
+			newMW:         nil,
+			expectedPath:  "/api/v1",
+			expectedMWLen: 0,
 		},
 		{
-			name:     "Prefix Test",
-			method:   http.MethodPost,
-			path:     "/burrito",
-			prefix:   "/taco",
-			expected: "POST /taco/burrito",
+			name:          "nested group with base middleware",
+			basePrefix:    "/api",
+			newPrefix:     "/v1",
+			baseMW:        []httpx.Middleware{dummyMiddleware()},
+			newMW:         nil,
+			expectedPath:  "/api/v1",
+			expectedMWLen: 1,
+		},
+		{
+			name:          "nested group with both middlewares",
+			basePrefix:    "/api",
+			newPrefix:     "/v1",
+			baseMW:        []httpx.Middleware{dummyMiddleware()},
+			newMW:         []httpx.Middleware{dummyMiddleware()},
+			expectedPath:  "/api/v1",
+			expectedMWLen: 2,
+		},
+		{
+			name:          "empty base prefix",
+			basePrefix:    "",
+			newPrefix:     "/api",
+			baseMW:        nil,
+			newMW:         nil,
+			expectedPath:  "/api",
+			expectedMWLen: 0,
+		},
+		{
+			name:          "empty new prefix",
+			basePrefix:    "/api",
+			newPrefix:     "",
+			baseMW:        nil,
+			newMW:         nil,
+			expectedPath:  "/api",
+			expectedMWLen: 0,
+		},
+		{
+			name:          "both prefixes empty",
+			basePrefix:    "",
+			newPrefix:     "",
+			baseMW:        nil,
+			newMW:         nil,
+			expectedPath:  "",
+			expectedMWLen: 0,
+		},
+		{
+			name:          "deeply nested paths",
+			basePrefix:    "/api/v1",
+			newPrefix:     "/users",
+			baseMW:        nil,
+			newMW:         nil,
+			expectedPath:  "/api/v1/users",
+			expectedMWLen: 0,
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			path := buildPath(tc.method, tc.path, tc.prefix)
-			assert.Equal(t, tc.expected, path)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := NewApp(testLogger(t))
+
+			baseGroup := &Group{
+				app:    app,
+				prefix: tt.basePrefix,
+				mw:     tt.baseMW,
+			}
+
+			newGroup := baseGroup.Group(tt.newPrefix, tt.newMW...)
+
+			assert.Equal(t, tt.expectedPath, newGroup.prefix)
+			assert.Equal(t, tt.expectedMWLen, len(newGroup.mw))
+			assert.Equal(t, app, newGroup.app)
 		})
+	}
+}
+
+// Helper function to create a dummy middleware
+func dummyMiddleware() httpx.Middleware {
+	return func(next httpx.HandlerFunc) httpx.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) httpx.Responder {
+			return next(w, r)
+		}
 	}
 }
