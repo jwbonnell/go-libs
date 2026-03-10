@@ -26,7 +26,7 @@ func Errors(log *logx.Logger) httpx.Middleware {
 					path = fmt.Sprintf("%s?%s", path, r.URL.RawQuery)
 				}
 
-				log.Info(ctx, "request error", "trace_id", v.TraceID, "statuscode", resp.Status(), "error", resp.Error(), "method", r.Method, "path", path)
+				log.Error(ctx, "request error", "trace_id", v.TraceID, "statuscode", resp.Status(), "error", resp.Error(), "method", r.Method, "path", path)
 
 				var statusCode = resp.Status()
 				if statusCode < 400 {
