@@ -22,6 +22,10 @@ func Exec(ctx context.Context, d queriers.Querier, sql string, args interface{})
 // ExecReturn executes a SQL statement is expected to return a single row that needs to be mapped to a struct.
 func ExecReturn[D any](ctx context.Context, d queriers.Querier, sql string, dest *D, args interface{}) error {
 	namedArgs, err := StructToNamedArgs(args)
+	if err != nil {
+		return fmt.Errorf("StructToNamedArgs: %w", err)
+	}
+
 	rows, err := d.Query(ctx, sql, namedArgs)
 	if err != nil {
 		return fmt.Errorf("dbx.Querier.Query: %w", err)
@@ -44,22 +48,31 @@ func ExecReturn[D any](ctx context.Context, d queriers.Querier, sql string, dest
 
 // ExecReturnMany functions the same as ExecReturn where a SQL statement is expected to return data that
 // needs to be mapped to a struct. The difference is multiple rows are expected and are returned as a slice.
-/*func ExecReturnMany[D any](ctx context.Context, d queriers.Querier, sql string, dest []D, args []interface{}) error {
-	namedArgs, err := StructToNamedArgs(args)
+func ExecReturnMany[D any](ctx context.Context, d queriers.Querier, sql string, dest *[]D, args interface{}) error {
+	namedArgs, err := SliceToNamedArgs(args)
+	if err != nil {
+		return fmt.Errorf("SliceToNamedArgs: %w", err)
+	}
+
 	rows, err := d.Query(ctx, sql, namedArgs)
 	if err != nil {
 		return fmt.Errorf("dbx.Querier.Query: %w", err)
 	}
 	defer rows.Close()
 
-	// Use pgx.CollectOneRow with RowToStructByName for struct mapping
-	// If T is not a struct, the RowToStructByName will fail and Scan will be required.
-	dest, err = pgx.CollectRows(rows, pgx.RowToStructByName[D])
+	// Use pgx.CollectRows to collect all rows into a slice
+	out, err := pgx.CollectRows(rows, pgx.RowToStructByName[D])
 	if err != nil {
 		return fmt.Errorf("pgx.CollectRows: %w", err)
 	}
+
+	if len(out) == 0 {
+		return pgx.ErrNoRows
+	}
+
+	*dest = out
 	return nil
-}*/
+}
 
 func AdvisoryTransactionLock[T any](ctx context.Context, tx pgx.Tx, id int) error {
 	_, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", id)

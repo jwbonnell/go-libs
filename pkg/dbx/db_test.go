@@ -2,8 +2,10 @@ package dbx
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -207,7 +209,7 @@ func (s *DBTestSuite) TestInsertReturning_Integration() {
 	s.Require().Equal("America/Detroit", u.Properties.Preferences.TimeZone)
 }
 
-/*func (s *DBTestSuite) TestInsertReturningMultiple_Integration() {
+func (s *DBTestSuite) TestInsertReturningMultiple_Integration() {
 	uid := uuid.New()
 	uid2 := uuid.New()
 	nus := []User{
@@ -254,22 +256,260 @@ func (s *DBTestSuite) TestInsertReturning_Integration() {
 	var dest []User
 	err := ExecReturnMany[User](s.T().Context(), s.db.Pool(), `
 		INSERT INTO users (uuid, name, email, address, properties)
-			VALUES (@uuid1, @name1, @email1, @address1, @properties1)
+			VALUES (@uuid1, @name1, @email1, @address1, @properties1),
 				   (@uuid2, @name2, @email2, @address2, @properties2)
 		RETURNING *
-	`, dest, nus)
+	`, &dest, nus)
 	s.Require().NoError(err)
-	s.Require().Equal("TestInsertReturning_Integration", dest[0].Name)
-	s.Require().Equal("Detroit", dest[0].Address.City)
+	s.Require().NotNil(dest)
+	s.Require().Equal("TestInsertReturningMultiple_Integration", dest[0].Name)
+	s.Require().Equal("Livonia", dest[0].Address.City)
 	s.Require().Equal("America/Detroit", dest[0].Properties.Preferences.TimeZone)
+	s.Require().Equal("TestInsertReturningMultiple_Integration2", dest[1].Name)
+	s.Require().Equal("Troy", dest[1].Address.City)
+	s.Require().Equal("America/New York", dest[1].Properties.Preferences.TimeZone)
 
 	var u User
 	err = QueryOne[User](s.T().Context(), s.db.Pool(), "SELECT * FROM users WHERE uuid=@uuid", &u, pgx.NamedArgs{"uuid": uid})
 	s.Require().NoError(err)
-	s.Require().Equal("TestInsertReturning_Integration", u.Name)
-	s.Require().Equal("Detroit", u.Address.City)
+	s.Require().Equal("TestInsertReturningMultiple_Integration", u.Name)
+	s.Require().Equal("Livonia", u.Address.City)
 	s.Require().Equal("America/Detroit", u.Properties.Preferences.TimeZone)
-}*/
+}
+
+func (s *DBTestSuite) TestExecReturnMany_LargeDataSet() {
+	// Test with many rows
+	users := make([]User, 10)
+	for i := 0; i < 10; i++ {
+		users[i] = User{
+			UUID:  uuid.New(),
+			Name:  fmt.Sprintf("Bulk User %d", i+1),
+			Email: fmt.Sprintf("bulk%d@example.com", i+1),
+			Address: Address{
+				Street: fmt.Sprintf("%d Main St", i+1),
+				Zip:    fmt.Sprintf("%05d", 10000+i),
+				City:   fmt.Sprintf("City%d", i+1),
+				State:  "TestState",
+			},
+			Properties: Properties{
+				Married: true,
+				Preferences: Preferences{
+					DarkMode: true,
+					Language: "en",
+					TimeZone: "America/Detroit",
+				},
+			},
+		}
+	}
+
+	var dest []User
+	// Build dynamic SQL for 10 rows
+	sqlParts := make([]string, 10)
+	for i := 0; i < 10; i++ {
+		sqlParts[i] = fmt.Sprintf("(@uuid%d, @name%d, @email%d, @address%d, @properties%d)", i+1, i+1, i+1, i+1, i+1)
+	}
+	sql := fmt.Sprintf(`
+		INSERT INTO users (uuid, name, email, address, properties)
+		VALUES %s
+		RETURNING *
+	`, strings.Join(sqlParts, ","))
+
+	err := ExecReturnMany[User](s.T().Context(), s.db.Pool(), sql, &dest, users)
+	s.Require().NoError(err)
+	s.Require().Len(dest, 10)
+
+	// Verify all rows were inserted
+	for i, u := range dest {
+		s.Require().Equal(fmt.Sprintf("Bulk User %d", i+1), u.Name)
+	}
+}
+
+func (s *DBTestSuite) TestExecReturnMany_NoRowsReturned() {
+	// Insert a user first
+	uid := uuid.New()
+	user := []User{
+		{
+			UUID:  uid,
+			Name:  "NoRows Test",
+			Email: "norows@example.com",
+			Address: Address{
+				Street: "Test Street",
+				Zip:    "12345",
+				City:   "TestCity",
+				State:  "TestState",
+			},
+			Properties: Properties{
+				Married: true,
+				Preferences: Preferences{
+					DarkMode: true,
+					Language: "en",
+					TimeZone: "America/Detroit",
+				},
+			},
+		},
+	}
+
+	var inserted []User
+	err := ExecReturnMany[User](s.T().Context(), s.db.Pool(), `
+		INSERT INTO users (uuid, name, email, address, properties)
+		VALUES (@uuid1, @name1, @email1, @address1, @properties1)
+		RETURNING *
+	`, &inserted, user)
+	s.Require().NoError(err)
+
+	// Try to update with WHERE clause that matches nothing
+	updateData := []User{
+		{
+			UUID:  uuid.New(), // Different UUID
+			Name:  "Should Not Update",
+			Email: "shouldnotupdate@example.com",
+			Address: Address{
+				Street: "Update Street",
+				Zip:    "54321",
+				City:   "UpdateCity",
+				State:  "UpdateState",
+			},
+			Properties: Properties{
+				Married: true,
+				Preferences: Preferences{
+					DarkMode: true,
+					Language: "en",
+					TimeZone: "America/Detroit",
+				},
+			},
+		},
+	}
+
+	var updated []User
+	err = ExecReturnMany[User](s.T().Context(), s.db.Pool(), `
+		UPDATE users SET name = @name1, email = @email1
+		WHERE uuid = @uuid1
+		RETURNING *
+	`, &updated, updateData)
+
+	// Should return ErrNoRows when no rows match
+	s.Require().Error(err)
+	s.Require().Equal(pgx.ErrNoRows, err)
+}
+
+func (s *DBTestSuite) TestExecReturnMany_WithContext_Cancellation() {
+	uid := uuid.New()
+	user := User{
+		UUID:  uid,
+		Name:  "Context Cancel Test",
+		Email: "contextcancel@example.com",
+	}
+
+	ctx, cancel := context.WithCancel(s.T().Context())
+	cancel() // Cancel immediately
+
+	var dest []User
+	err := ExecReturnMany[User](ctx, s.db.Pool(), `
+		INSERT INTO users (uuid, name, email)
+		VALUES (@uuid1, @name1, @email1)
+		RETURNING *
+	`, &dest, []User{user})
+
+	s.Require().Error(err)
+	// Should contain context cancellation error
+	s.Require().True(errors.Is(err, context.Canceled) || strings.Contains(err.Error(), "context canceled"))
+}
+
+func (s *DBTestSuite) TestExecReturnMany_InsufficientNamedArgs() {
+	// Test that missing named args in the struct causes an error
+	uid := uuid.New()
+	users := []User{
+		{
+			UUID:  uid,
+			Name:  "Missing Args Test",
+			Email: "missingargs@example.com",
+		},
+	}
+
+	var dest []User
+	err := ExecReturnMany[User](s.T().Context(), s.db.Pool(), `
+		INSERT INTO users (uuid, name, email, address)
+		VALUES (@uuid1, @name1, @email1, @address1)
+		RETURNING *
+	`, &dest, users)
+
+	// Should fail because @address1 is not provided
+	s.Require().Error(err)
+}
+
+func (s *DBTestSuite) TestExecReturnMany_RollbackOnError() {
+	// Test that if one row fails, the entire transaction is rolled back
+	uid1 := uuid.New()
+	uid2 := uuid.New()
+
+	addr := Address{
+		Street: "Update Street",
+		Zip:    "54321",
+		City:   "UpdateCity",
+		State:  "UpdateState",
+	}
+	props := Properties{
+		Married: true,
+		Preferences: Preferences{
+			DarkMode: true,
+			Language: "en",
+			TimeZone: "America/Detroit",
+		},
+	}
+
+	// Create a duplicate email to force a constraint violation
+	existingUser := User{
+		UUID:       uuid.New(),
+		Name:       "Existing User",
+		Email:      "duplicate@example.com",
+		Address:    addr,
+		Properties: props,
+	}
+
+	var inserted []User
+	err := ExecReturnMany[User](s.T().Context(), s.db.Pool(), `
+		INSERT INTO users (uuid, name, email, address, properties)
+		VALUES (@uuid1, @name1, @email1, @address1, @properties1)
+		RETURNING *
+	`, &inserted, []User{existingUser})
+	s.Require().NoError(err)
+
+	// Try to insert two users where the second has a duplicate email
+	users := []User{
+		{
+			UUID:       uid1,
+			Name:       "New User 1",
+			Email:      "newuser1@example.com",
+			Address:    addr,
+			Properties: props,
+		},
+		{
+			UUID:       uid2,
+			Name:       "Duplicate User",
+			Email:      "duplicate@example.com", // This should cause a constraint violation
+			Address:    addr,
+			Properties: props,
+		},
+	}
+
+	var dest []User
+	err = ExecReturnMany[User](s.T().Context(), s.db.Pool(), `
+		INSERT INTO users (uuid, name, email, address, properties)
+			VALUES (@uuid1, @name1, @email1, @address1, @properties1),
+				   (@uuid2, @name2, @email2, @address2, @properties2)
+		RETURNING *
+	`, &dest, users)
+
+	// Should fail due to duplicate email
+	s.Require().Error(err)
+
+	// Verify that the first user was NOT inserted (rollback occurred)
+	var count int
+	err = s.db.Pool().QueryRow(s.T().Context(),
+		"SELECT COUNT(*) FROM users WHERE name = 'New User 1'").Scan(&count)
+	s.Require().NoError(err)
+	s.Require().Equal(0, count, "User should not have been inserted due to rollback")
+}
 
 func (s *DBTestSuite) TestUpdate_Integration() {
 	uid := uuid.New()
@@ -465,6 +705,224 @@ func (s *DBTestSuite) TestNamedArgsToStruct() {
 	s.Require().Equal(args["uuid"], u)
 	s.Require().Equal(args["name"], namedArgs["name"])
 	s.Require().Equal(args["number"], namedArgs["number"])
+}
+
+func (s *DBTestSuite) TestSliceToNamedArgs() {
+	uid1 := uuid.New()
+	uid2 := uuid.New()
+	users := []User{
+		{
+			UUID:  uid1,
+			Name:  "Bob Transaction Rollback",
+			Email: "bob@gmail.com",
+			Address: Address{
+				Street: "main street",
+				Zip:    "56456",
+				City:   "Portland",
+				State:  "Oregon",
+			},
+			Properties: Properties{
+				Married: true,
+				Preferences: Preferences{
+					DarkMode: true,
+					Language: "en",
+					TimeZone: "Europe/London",
+				},
+			},
+		},
+		{
+			UUID:  uid2,
+			Name:  "Alice Test User",
+			Email: "alice@gmail.com",
+			Address: Address{
+				Street: "oak avenue",
+				Zip:    "97214",
+				City:   "Seattle",
+				State:  "Washington",
+			},
+			Properties: Properties{
+				Married: false,
+				Preferences: Preferences{
+					DarkMode: false,
+					Language: "es",
+					TimeZone: "America/Los_Angeles",
+				},
+			},
+		},
+	}
+
+	na, err := SliceToNamedArgs(users)
+	s.Require().NoError(err)
+
+	// Test first user's fields
+	s.Require().Equal(na["name1"], "Bob Transaction Rollback")
+	s.Require().Equal(na["email1"], "bob@gmail.com")
+
+	e1, ok := na["uuid1"].(uuid.UUID)
+	s.Require().True(ok)
+	s.Require().Equal(e1.String(), uid1.String())
+
+	addr1, ok := na["address1"].(Address)
+	s.Require().True(ok)
+	s.Require().Equal(addr1.Street, "main street")
+	s.Require().Equal(addr1.Zip, "56456")
+
+	props1, ok := na["properties1"].(Properties)
+	s.Require().True(ok)
+	s.Require().True(props1.Married)
+	s.Require().Equal(props1.Preferences.TimeZone, "Europe/London")
+
+	// Test second user's fields
+	s.Require().Equal(na["name2"], "Alice Test User")
+	s.Require().Equal(na["email2"], "alice@gmail.com")
+
+	e2, ok := na["uuid2"].(uuid.UUID)
+	s.Require().True(ok)
+	s.Require().Equal(e2.String(), uid2.String())
+
+	addr2, ok := na["address2"].(Address)
+	s.Require().True(ok)
+	s.Require().Equal(addr2.Street, "oak avenue")
+	s.Require().Equal(addr2.City, "Seattle")
+
+	props2, ok := na["properties2"].(Properties)
+	s.Require().True(ok)
+	s.Require().False(props2.Married)
+	s.Require().Equal(props2.Preferences.Language, "es")
+}
+
+func (s *DBTestSuite) TestSliceToNamedArgs_SingleElement() {
+	uid := uuid.New()
+	users := []User{
+		{
+			UUID:  uid,
+			Name:  "Single User",
+			Email: "single@gmail.com",
+			Address: Address{
+				Street: "test street",
+				Zip:    "12345",
+				City:   "TestCity",
+				State:  "TestState",
+			},
+		},
+	}
+
+	na, err := SliceToNamedArgs(users)
+	s.Require().NoError(err)
+
+	s.Require().Equal(na["name1"], "Single User")
+	s.Require().Equal(na["email1"], "single@gmail.com")
+
+	e, ok := na["uuid1"].(uuid.UUID)
+	s.Require().True(ok)
+	s.Require().Equal(e.String(), uid.String())
+}
+
+func (s *DBTestSuite) TestSliceToNamedArgs_EmptySlice() {
+	users := []User{}
+
+	na, err := SliceToNamedArgs(users)
+	s.Require().NoError(err)
+	s.Require().Empty(na)
+}
+
+func (s *DBTestSuite) TestSliceToNamedArgs_PointerToSlice() {
+	uid := uuid.New()
+	users := []User{
+		{
+			UUID:  uid,
+			Name:  "Pointer Test",
+			Email: "pointer@gmail.com",
+		},
+	}
+
+	na, err := SliceToNamedArgs(&users)
+	s.Require().NoError(err)
+	s.Require().Equal(na["name1"], "Pointer Test")
+}
+
+func (s *DBTestSuite) TestSliceToNamedArgs_AlreadyNamedArgs() {
+	existingArgs := pgx.NamedArgs{
+		"custom1": "value1",
+		"custom2": "value2",
+	}
+
+	na, err := SliceToNamedArgs(existingArgs)
+	s.Require().NoError(err)
+	s.Require().Equal(na, existingArgs)
+}
+
+func (s *DBTestSuite) TestSliceToNamedArgs_InvalidInput_NotSlice() {
+	invalidInput := "not a slice"
+
+	_, err := SliceToNamedArgs(invalidInput)
+	s.Require().Error(err)
+	s.Require().Contains(err.Error(), "input must be a slice of structs")
+}
+
+func (s *DBTestSuite) TestSliceToNamedArgs_InvalidInput_NonStructElements() {
+	invalidInput := []string{"not", "structs"}
+
+	_, err := SliceToNamedArgs(invalidInput)
+	s.Require().Error(err)
+	s.Require().Contains(err.Error(), "slice elements must be structs")
+}
+
+func (s *DBTestSuite) TestSliceToNamedArgs_PointerSliceElements() {
+	uid1 := uuid.New()
+	uid2 := uuid.New()
+	users := []*User{
+		{
+			UUID:  uid1,
+			Name:  "Pointer Element 1",
+			Email: "ptr1@gmail.com",
+		},
+		{
+			UUID:  uid2,
+			Name:  "Pointer Element 2",
+			Email: "ptr2@gmail.com",
+		},
+	}
+
+	na, err := SliceToNamedArgs(users)
+	s.Require().NoError(err)
+
+	s.Require().Equal(na["name1"], "Pointer Element 1")
+	s.Require().Equal(na["name2"], "Pointer Element 2")
+	s.Require().Equal(na["email1"], "ptr1@gmail.com")
+	s.Require().Equal(na["email2"], "ptr2@gmail.com")
+}
+
+func (s *DBTestSuite) TestSliceToNamedArgs_CustomDBTags() {
+	type CustomTagUser struct {
+		ID    string `db:"user_id"`
+		Name  string `db:"full_name"`
+		Email string
+	}
+
+	users := []CustomTagUser{
+		{
+			ID:    "123",
+			Name:  "John Doe",
+			Email: "john@example.com",
+		},
+		{
+			ID:    "456",
+			Name:  "Jane Doe",
+			Email: "jane@example.com",
+		},
+	}
+
+	na, err := SliceToNamedArgs(users)
+	s.Require().NoError(err)
+
+	s.Require().Equal(na["user_id1"], "123")
+	s.Require().Equal(na["full_name1"], "John Doe")
+	s.Require().Equal(na["Email1"], "john@example.com")
+
+	s.Require().Equal(na["user_id2"], "456")
+	s.Require().Equal(na["full_name2"], "Jane Doe")
+	s.Require().Equal(na["Email2"], "jane@example.com")
 }
 
 /*
