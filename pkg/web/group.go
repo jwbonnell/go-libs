@@ -39,7 +39,7 @@ func (g *Group) HandleFunc(method string, path string, handler httpx.HandlerFunc
 		resp := handler(w, r)
 
 		if err := resp.Respond(ctx, w, r); err != nil {
-			g.app.log.Info(ctx, "web-respond", "ERROR", err)
+			g.app.log.Error(ctx, "web-respond", "ERROR", err)
 			return
 		}
 	}
