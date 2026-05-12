@@ -73,11 +73,3 @@ func ExecReturnMany[D any](ctx context.Context, d queriers.Querier, sql string, 
 	*dest = out
 	return nil
 }
-
-func AdvisoryTransactionLock[T any](ctx context.Context, tx pgx.Tx, id int) error {
-	_, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", id)
-	if err != nil {
-		return fmt.Errorf("dbx.AdvisoryTransactionLock: %w", err)
-	}
-	return nil
-}

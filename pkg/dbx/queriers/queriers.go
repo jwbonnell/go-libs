@@ -2,6 +2,7 @@ package queriers
 
 import (
 	"context"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -81,6 +82,12 @@ type TxQuerier struct {
 // Callers must close the returned rows.
 func (tq *TxQuerier) Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error) {
 	return tq.q.Query(ctx, sql, args...)
+}
+
+// QueryRow forwards to the underlying transaction's QueryRow method.
+// Callers must close the returned rows.
+func (tq *TxQuerier) QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row {
+	return tq.q.QueryRow(ctx, sql, args...)
 }
 
 // Exec forwards to the underlying transaction's Exec method and returns the CommandTag.

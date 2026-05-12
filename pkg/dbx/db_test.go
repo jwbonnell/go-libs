@@ -1064,3 +1064,130 @@ func getSeedData() []User {
 		},
 	}
 }
+
+func (s *DBTestSuite) TestAdvisoryLockTxBegin_Success() {
+	tx, err := AdvisoryLockTxBegin(s.T().Context(), s.db.Pool(), "test-lock-id")
+	s.Require().NoError(err)
+	s.Require().NotNil(tx)
+
+	// Verify transaction is still open by executing a query
+	var result int
+	err = tx.QueryRow(s.T().Context(), "SELECT 1").Scan(&result)
+	s.Require().NoError(err)
+	s.Require().Equal(1, result)
+
+	// Clean up
+	s.Require().NoError(tx.Rollback(s.T().Context()))
+}
+
+func (s *DBTestSuite) TestAdvisoryLockTxBegin_DifferentLockIDs() {
+	lockID1 := "lock-1"
+	lockID2 := "lock-2"
+
+	tx1, err := AdvisoryLockTxBegin(s.T().Context(), s.db.Pool(), lockID1)
+	s.Require().NoError(err)
+	s.Require().NotNil(tx1)
+
+	tx2, err := AdvisoryLockTxBegin(s.T().Context(), s.db.Pool(), lockID2)
+	s.Require().NoError(err)
+	s.Require().NotNil(tx2)
+
+	// Both transactions should be independent
+	var result1, result2 int
+	err = tx1.QueryRow(s.T().Context(), "SELECT 1").Scan(&result1)
+	s.Require().NoError(err)
+
+	err = tx2.QueryRow(s.T().Context(), "SELECT 1").Scan(&result2)
+	s.Require().NoError(err)
+
+	s.Require().Equal(1, result1)
+	s.Require().Equal(1, result2)
+
+	s.Require().NoError(tx1.Rollback(s.T().Context()))
+	s.Require().NoError(tx2.Rollback(s.T().Context()))
+}
+
+func (s *DBTestSuite) TestAdvisoryLockTxBegin_SameLockIDBlocks() {
+	lockID := "blocking-lock"
+
+	tx1, err := AdvisoryLockTxBegin(s.T().Context(), s.db.Pool(), lockID)
+	s.Require().NoError(err)
+	s.Require().NotNil(tx1)
+
+	// Create a context with timeout to avoid hanging indefinitely
+	ctxWithTimeout, cancel := context.WithTimeout(s.T().Context(), 2*time.Second)
+	defer cancel()
+
+	// Attempting to acquire the same lock should block and timeout
+	_, err = AdvisoryLockTxBegin(ctxWithTimeout, s.db.Pool(), lockID)
+	s.Require().Error(err)
+	s.Require().True(errors.Is(err, context.DeadlineExceeded))
+
+	s.Require().NoError(tx1.Rollback(s.T().Context()))
+}
+
+func (s *DBTestSuite) TestAdvisoryLockTxBegin_BeginFailure() {
+	tx, err := AdvisoryLockTxBegin(s.T().Context(), s.db.Pool(), "test-lock")
+	s.Require().Error(err)
+	s.Require().Nil(tx)
+	s.Require().Equal("connection failed", err.Error())
+}
+
+func (s *DBTestSuite) TestAdvisoryLockTxBegin_HashWriteFailure() {
+	tx, err := AdvisoryLockTxBegin(s.T().Context(), s.db.Pool(), "test-lock")
+	s.Require().Error(err)
+	s.Require().Nil(tx)
+}
+
+func (s *DBTestSuite) TestAdvisoryLockTxBegin_AdvisoryLockFailure() {
+	tx, err := AdvisoryLockTxBegin(s.T().Context(), s.db.Pool(), "test-lock")
+	s.Require().Error(err)
+	s.Require().Nil(tx)
+	s.Require().Contains(err.Error(), "dbx.AdvisoryLockTxBegin")
+}
+
+func (s *DBTestSuite) TestAdvisoryLockTxBegin_RollbackFailureOnLockError() {
+	tx, err := AdvisoryLockTxBegin(s.T().Context(), s.db.Pool(), "test-lock")
+	s.Require().Error(err)
+	s.Require().Nil(tx)
+	s.Require().Contains(err.Error(), "failed to rollback transaction")
+	s.Require().Contains(err.Error(), "lock failed")
+	s.Require().Contains(err.Error(), "rollback failed")
+}
+
+func (s *DBTestSuite) TestAdvisoryLockTxBegin_EmptyLockID() {
+	tx, err := AdvisoryLockTxBegin(s.T().Context(), s.db.Pool(), "")
+	s.Require().NoError(err)
+	s.Require().NotNil(tx)
+
+	// Verify transaction is still open
+	var result int
+	err = tx.QueryRow(s.T().Context(), "SELECT 1").Scan(&result)
+	s.Require().NoError(err)
+
+	s.Require().NoError(tx.Rollback(s.T().Context()))
+}
+
+func (s *DBTestSuite) TestAdvisoryLockTxBegin_LargeLockID() {
+	largeLockID := strings.Repeat("a", 10000)
+
+	tx, err := AdvisoryLockTxBegin(s.T().Context(), s.db.Pool(), largeLockID)
+	s.Require().NoError(err)
+	s.Require().NotNil(tx)
+
+	var result int
+	err = tx.QueryRow(s.T().Context(), "SELECT 1").Scan(&result)
+	s.Require().NoError(err)
+
+	s.Require().NoError(tx.Rollback(s.T().Context()))
+}
+
+func (s *DBTestSuite) TestAdvisoryLockTxBegin_ContextCancellation() {
+	ctx, cancel := context.WithCancel(s.T().Context())
+	cancel()
+
+	tx, err := AdvisoryLockTxBegin(ctx, s.db.Pool(), "test-lock")
+	s.Require().Error(err)
+	s.Require().Nil(tx)
+	s.Require().True(errors.Is(err, context.Canceled))
+}
