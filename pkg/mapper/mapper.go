@@ -23,8 +23,8 @@ func MapSlice[T any](src any) ([]T, error) {
 	out = make([]T, 0, ln)
 	for i := 0; i < ln; i++ {
 		elem := sv.Index(i).Interface()
-		// If element is nil pointer, append zero T
-		if reflect.ValueOf(elem).Kind() == reflect.Pointer && reflect.ValueOf(elem).IsNil() {
+		ev := reflect.ValueOf(elem)
+		if ev.Kind() == reflect.Pointer && ev.IsNil() {
 			out = append(out, *new(T))
 			continue
 		}
@@ -144,7 +144,10 @@ func setAssignable(src, dest reflect.Value) error {
 
 	// Custom converter lookup
 	key := convKey(src.Type(), dest.Type())
-	if conv, ok := converters[key]; ok {
+	convertersMu.RLock()
+	conv, ok := converters[key]
+	convertersMu.RUnlock()
+	if ok {
 		convVal, err := conv(src, dest.Type())
 		if err != nil {
 			return err
@@ -180,9 +183,6 @@ func setAssignable(src, dest reflect.Value) error {
 			}
 		}
 		if dest.Kind() == reflect.Array {
-			if dest.Len() < newSlice.Len() {
-				return fmt.Errorf("destination array too small: %d < %d", dest.Len(), newSlice.Len())
-			}
 			reflect.Copy(dest, newSlice)
 		} else {
 			dest.Set(newSlice)

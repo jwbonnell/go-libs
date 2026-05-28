@@ -2,11 +2,11 @@ package mapper
 
 import (
 	"database/sql"
-	"fmt"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -75,9 +75,6 @@ func (su *MapperTestSuite) SetupSuite() {
 	// sql.NullTime -> time.Time
 	RegisterConverter(reflect.TypeOf(sql.NullTime{}), reflect.TypeOf(time.Time{}), SqlNullTimeToTime)
 
-	// *sql.NullTime -> time.Time
-	RegisterConverter(reflect.TypeOf(&sql.NullTime{}).Elem(), reflect.TypeOf(time.Time{}), SqlNullPtrTimeToTime)
-
 	// time.Time -> sql.NullTime
 	RegisterConverter(reflect.TypeOf(time.Time{}), reflect.TypeOf(sql.NullTime{}), TimeToSqlNullTime)
 
@@ -97,6 +94,29 @@ func (su *MapperTestSuite) SetupSuite() {
 		}
 		return t, nil
 	}))
+
+	// string -> sql.NullString
+	RegisterConverter(reflect.TypeOf(""), reflect.TypeOf(sql.NullString{}), StringToNullString)
+
+	// sql.NullInt64 <-> int64
+	RegisterConverter(reflect.TypeOf(sql.NullInt64{}), reflect.TypeOf(int64(0)), NullInt64ToInt64)
+	RegisterConverter(reflect.TypeOf(int64(0)), reflect.TypeOf(sql.NullInt64{}), Int64ToNullInt64)
+
+	// sql.NullInt32 <-> int32
+	RegisterConverter(reflect.TypeOf(sql.NullInt32{}), reflect.TypeOf(int32(0)), NullInt32ToInt32)
+	RegisterConverter(reflect.TypeOf(int32(0)), reflect.TypeOf(sql.NullInt32{}), Int32ToNullInt32)
+
+	// sql.NullFloat64 <-> float64
+	RegisterConverter(reflect.TypeOf(sql.NullFloat64{}), reflect.TypeOf(float64(0)), NullFloat64ToFloat64)
+	RegisterConverter(reflect.TypeOf(float64(0)), reflect.TypeOf(sql.NullFloat64{}), Float64ToNullFloat64)
+
+	// sql.NullBool <-> bool
+	RegisterConverter(reflect.TypeOf(sql.NullBool{}), reflect.TypeOf(false), NullBoolToBool)
+	RegisterConverter(reflect.TypeOf(false), reflect.TypeOf(sql.NullBool{}), BoolToNullBool)
+
+	// uuid.UUID <-> string
+	RegisterConverter(reflect.TypeOf(uuid.UUID{}), reflect.TypeOf(""), UUIDToString)
+	RegisterConverter(reflect.TypeOf(""), reflect.TypeOf(uuid.UUID{}), StringToUUID)
 }
 
 func (su *MapperTestSuite) TestMapStruct_SimpleFields() {
@@ -154,22 +174,22 @@ func (su *MapperTestSuite) TestMapStruct_NestedAndSlice() {
 	su.Require().NoError(err)
 
 	// Inner.When mapped to time.Time
-	su.Require().True(got.Inner.When.Equal(now), fmt.Sprintf("Inner.When: want %v got %v", now, got.Inner.When))
+	su.Require().True(got.Inner.When.Equal(now), "Inner.When: want %v got %v", now, got.Inner.When)
 
 	// Inner.Tags
-	su.Require().True(reflect.DeepEqual(got.Inner.Tags, []string{"x", "y"}), fmt.Sprintf("Inner.Tags mismatch: %+v", got.Inner.Tags))
-	su.Require().Equal(7, got.Inner.Nest.Value, fmt.Sprintf("Inner.Nest.Value: want 7 got %d", got.Inner.Nest.Value))
+	su.Require().True(reflect.DeepEqual(got.Inner.Tags, []string{"x", "y"}), "Inner.Tags mismatch: %+v", got.Inner.Tags)
+	su.Require().Equal(7, got.Inner.Nest.Value, "Inner.Nest.Value: want 7 got %d", got.Inner.Nest.Value)
 	su.Require().Len(got.List, 2)
-	su.Require().True(got.List[0].When.Equal(now.Add(-24*time.Hour)), fmt.Sprintf("List[0].When mismatch: want %v got %v", now.Add(-24*time.Hour), got.List[0].When))
-	su.Require().True(got.List[1].When.IsZero(), fmt.Sprintf("List[1].When expected zero, got %v", got.List[1].When))
+	su.Require().True(got.List[0].When.Equal(now.Add(-24*time.Hour)), "List[0].When mismatch: want %v got %v", now.Add(-24*time.Hour), got.List[0].When)
+	su.Require().True(got.List[1].When.IsZero(), "List[1].When expected zero, got %v", got.List[1].When)
 	su.Require().NotNil(got.Ptr)
-	su.Require().True(got.Ptr.When.Equal(now.Add(1*time.Hour)), fmt.Sprintf("Ptr.When mismatch: got %v", got.Ptr.When))
-	su.Require().Equal(1, len(got.SlicePtr), fmt.Sprintf("SlicePtr length want 1 got %d", len(got.SlicePtr)))
-	su.Require().False(got.SlicePtr[0].Tags == nil || got.SlicePtr[0].Tags[0] != "sp", fmt.Sprintf("SlicePtr element mismatch: %+v", got.SlicePtr[0]))
+	su.Require().True(got.Ptr.When.Equal(now.Add(1*time.Hour)), "Ptr.When mismatch: got %v", got.Ptr.When)
+	su.Require().Equal(1, len(got.SlicePtr), "SlicePtr length want 1 got %d", len(got.SlicePtr))
+	su.Require().False(got.SlicePtr[0].Tags == nil || got.SlicePtr[0].Tags[0] != "sp", "SlicePtr element mismatch: %+v", got.SlicePtr[0])
 }
 
 func (su *MapperTestSuite) TestMapStruct_TypesSliceToArrayLengthDiff() {
-	// Attempt mapping where destination array too small
+	// Slice longer than dest array: excess elements are truncated silently.
 	type S1 struct {
 		A []int
 	}
@@ -191,8 +211,8 @@ func (su *MapperTestSuite) TestMapStruct_MapConversion() {
 	}
 	s := S2{M: map[string]int{"k": 9}}
 	got, err := MapStruct[D2](s)
-	su.Require().NoError(err, fmt.Sprintf("MapStruct[D2]: %v", err))
-	su.Require().Equal(9, got.M["k"], fmt.Sprintf("MapStruct[D2]: want %v got %v", 9, got.M["k"]))
+	su.Require().NoError(err)
+	su.Require().Equal(9, got.M["k"])
 }
 
 type msSrc struct {
@@ -216,9 +236,9 @@ func (su *MapperTestSuite) TestMapSlice_ValueElements() {
 	got, err := MapSlice[msDst](src)
 	su.Require().NoError(err)
 	su.Require().Len(got, 2)
-	su.Require().False(got[0].ID != 1 || got[0].Name != "a", fmt.Sprintf("element0 mismatch: %+v", got[0]))
-	su.Require().True(got[0].When.Equal(now), fmt.Sprintf("element0 When: want %v got %v", now, got[0].When))
-	su.Require().True(got[1].When.IsZero(), fmt.Sprintf("element1 When expected zero, got %v", got[1].When))
+	su.Require().False(got[0].ID != 1 || got[0].Name != "a", "element0 mismatch: %+v", got[0])
+	su.Require().True(got[0].When.Equal(now), "element0 When: want %v got %v", now, got[0].When)
+	su.Require().True(got[1].When.IsZero(), "element1 When expected zero, got %v", got[1].When)
 }
 
 func (su *MapperTestSuite) TestMapSlice_PointerElements() {
@@ -228,28 +248,152 @@ func (su *MapperTestSuite) TestMapSlice_PointerElements() {
 		nil,
 	}
 	got, err := MapSlice[msDst](src)
-	su.Require().NoError(err, fmt.Sprintf("MapSlice error: %v", err))
-	su.Require().Len(got, 2, fmt.Sprintf("len: want 2 got %d", len(got)))
-	su.Require().Equal(3, got[0].ID, fmt.Sprintf("element0 mismatch: %+v", got[0]))
-	su.Require().Equal("p", got[0].Name, fmt.Sprintf("element0 mismatch: %+v", got[0]))
+	su.Require().NoError(err)
+	su.Require().Len(got, 2)
+	su.Require().Equal(3, got[0].ID, "element0 mismatch: %+v", got[0])
+	su.Require().Equal("p", got[0].Name, "element0 mismatch: %+v", got[0])
 
 	// nil source pointer -> zero value dest
-	su.Require().True(reflect.DeepEqual(got[1], msDst{}), fmt.Sprintf("element1 expected zero value, got %+v", got[1]))
+	su.Require().True(reflect.DeepEqual(got[1], msDst{}), "element1 expected zero value, got %+v", got[1])
 }
 
 func (su *MapperTestSuite) TestMapSlice_EmptyAndNil() {
 	var nilSlice []msSrc
 	got, err := MapSlice[msDst](nilSlice)
-	su.Require().NoError(err, fmt.Sprintf("MapSlice error: %v", err))
+	su.Require().NoError(err)
 	su.Require().NotNil(got, "expected empty slice (not nil), got nil")
 
 	var empty []msSrc
 	got2, err := MapSlice[msDst](empty)
-	su.Require().NoError(err, fmt.Sprintf("MapSlice error: %v", err))
-	su.Require().Equal(0, len(got2), fmt.Sprintf("expected length 0, got %d", len(got2)))
+	su.Require().NoError(err)
+	su.Require().Equal(0, len(got2), "expected length 0, got %d", len(got2))
 }
 
 func (su *MapperTestSuite) TestMapSlice_NonSliceError() {
 	_, err := MapSlice[msDst](123)
 	su.Require().Error(err, "expected error for non-slice input")
+}
+
+func (su *MapperTestSuite) TestMapStruct_StringToSqlNullTime_ParseError() {
+	type S struct{ T string }
+	type D struct{ T sql.NullTime }
+	_, err := MapStruct[D](S{T: "not-a-date"})
+	su.Require().Error(err, "expected error when string cannot be parsed as time")
+}
+
+func (su *MapperTestSuite) TestConverters_StringToNullString() {
+	type S struct{ V string }
+	type D struct{ V sql.NullString }
+
+	got, err := MapStruct[D](S{V: "hello"})
+	su.Require().NoError(err)
+	su.Require().Equal(sql.NullString{String: "hello", Valid: true}, got.V)
+
+	got, err = MapStruct[D](S{V: ""})
+	su.Require().NoError(err)
+	su.Require().Equal(sql.NullString{Valid: false}, got.V)
+}
+
+func (su *MapperTestSuite) TestConverters_NullInt64() {
+	type S struct{ V sql.NullInt64 }
+	type D struct{ V int64 }
+	type S2 struct{ V int64 }
+	type D2 struct{ V sql.NullInt64 }
+
+	got, err := MapStruct[D](S{V: sql.NullInt64{Int64: 42, Valid: true}})
+	su.Require().NoError(err)
+	su.Require().Equal(int64(42), got.V)
+
+	got, err = MapStruct[D](S{V: sql.NullInt64{Valid: false}})
+	su.Require().NoError(err)
+	su.Require().Equal(int64(0), got.V)
+
+	got2, err := MapStruct[D2](S2{V: 99})
+	su.Require().NoError(err)
+	su.Require().Equal(sql.NullInt64{Int64: 99, Valid: true}, got2.V)
+
+	got2, err = MapStruct[D2](S2{V: 0})
+	su.Require().NoError(err)
+	su.Require().Equal(sql.NullInt64{Int64: 0, Valid: false}, got2.V)
+}
+
+func (su *MapperTestSuite) TestConverters_NullInt32() {
+	type S struct{ V sql.NullInt32 }
+	type D struct{ V int32 }
+	type S2 struct{ V int32 }
+	type D2 struct{ V sql.NullInt32 }
+
+	got, err := MapStruct[D](S{V: sql.NullInt32{Int32: 7, Valid: true}})
+	su.Require().NoError(err)
+	su.Require().Equal(int32(7), got.V)
+
+	got, err = MapStruct[D](S{V: sql.NullInt32{Valid: false}})
+	su.Require().NoError(err)
+	su.Require().Equal(int32(0), got.V)
+
+	got2, err := MapStruct[D2](S2{V: 3})
+	su.Require().NoError(err)
+	su.Require().Equal(sql.NullInt32{Int32: 3, Valid: true}, got2.V)
+}
+
+func (su *MapperTestSuite) TestConverters_NullFloat64() {
+	type S struct{ V sql.NullFloat64 }
+	type D struct{ V float64 }
+	type S2 struct{ V float64 }
+	type D2 struct{ V sql.NullFloat64 }
+
+	got, err := MapStruct[D](S{V: sql.NullFloat64{Float64: 3.14, Valid: true}})
+	su.Require().NoError(err)
+	su.Require().Equal(3.14, got.V)
+
+	got, err = MapStruct[D](S{V: sql.NullFloat64{Valid: false}})
+	su.Require().NoError(err)
+	su.Require().Equal(float64(0), got.V)
+
+	got2, err := MapStruct[D2](S2{V: 2.71})
+	su.Require().NoError(err)
+	su.Require().Equal(sql.NullFloat64{Float64: 2.71, Valid: true}, got2.V)
+}
+
+func (su *MapperTestSuite) TestConverters_NullBool() {
+	type S struct{ V sql.NullBool }
+	type D struct{ V bool }
+	type S2 struct{ V bool }
+	type D2 struct{ V sql.NullBool }
+
+	got, err := MapStruct[D](S{V: sql.NullBool{Bool: true, Valid: true}})
+	su.Require().NoError(err)
+	su.Require().True(got.V)
+
+	got, err = MapStruct[D](S{V: sql.NullBool{Valid: false}})
+	su.Require().NoError(err)
+	su.Require().False(got.V)
+
+	got2, err := MapStruct[D2](S2{V: true})
+	su.Require().NoError(err)
+	su.Require().Equal(sql.NullBool{Bool: true, Valid: true}, got2.V)
+
+	got2, err = MapStruct[D2](S2{V: false})
+	su.Require().NoError(err)
+	su.Require().Equal(sql.NullBool{Bool: false, Valid: true}, got2.V)
+}
+
+func (su *MapperTestSuite) TestConverters_UUID() {
+	type S struct{ ID uuid.UUID }
+	type D struct{ ID string }
+	type S2 struct{ ID string }
+	type D2 struct{ ID uuid.UUID }
+
+	u := uuid.New()
+
+	got, err := MapStruct[D](S{ID: u})
+	su.Require().NoError(err)
+	su.Require().Equal(u.String(), got.ID)
+
+	got2, err := MapStruct[D2](S2{ID: u.String()})
+	su.Require().NoError(err)
+	su.Require().Equal(u, got2.ID)
+
+	_, err = MapStruct[D2](S2{ID: "not-a-uuid"})
+	su.Require().Error(err)
 }
