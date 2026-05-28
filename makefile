@@ -4,7 +4,7 @@ COLORIZE := sed -E \
   -e 's/(FAIL)/\x1b[31m\1\x1b[0m/g' \
   -e 's/(SKIP)/\x1b[33m\1\x1b[0m/g'
 
-.PHONY: test test_pkg_db test_pkg_log bench_pkg_log test_pkg_web
+.PHONY: test test_pkg_db test_pkg_logx bench_pkg_logx test_pkg_web
 
 test: test_pkg_db test_pkg_logx test_pkg_web test_pkg_mapper
 

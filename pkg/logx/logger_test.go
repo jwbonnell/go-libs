@@ -60,12 +60,12 @@ func TestLoggerLevels(t *testing.T) {
 			ctx := context.Background()
 			tc.logFunc(logger, ctx, "test message", "key", "value")
 
-			// Parse the JSON logx output
+			// Parse the JSON log output
 			var logEntry map[string]interface{}
 			err := json.Unmarshal(buf.Bytes(), &logEntry)
 			assert.NoError(t, err)
 
-			// Verify logx level and other details
+			// Verify log level and other details
 			assert.Equal(t, tc.expectedLevel, logEntry["level"])
 			assert.Equal(t, "test message", logEntry["msg"])
 			assert.Equal(t, "test-service", logEntry["service"])
@@ -114,16 +114,14 @@ func TestLoggerCallerSpecific(t *testing.T) {
 			logger := New(&buf, tc.level, "test-service", mockTraceIDFn)
 
 			ctx := context.Background()
-			// Continuing from the previous test file...
+			tc.logFunc(logger, ctx, 0, "test message", "key", "value")
 
-			tc.logFunc(logger, ctx, 2, "test message", "key", "value")
-
-			// Parse the JSON logx output
+			// Parse the JSON log output
 			var logEntry map[string]interface{}
 			err := json.Unmarshal(buf.Bytes(), &logEntry)
 			assert.NoError(t, err)
 
-			// Verify logx level and other details
+			// Verify log level and other details
 			assert.Equal(t, tc.expectedLevel, logEntry["level"])
 			assert.Equal(t, "test message", logEntry["msg"])
 			assert.Equal(t, "test-service", logEntry["service"])
@@ -153,35 +151,35 @@ func TestLoggerLevelFiltering(t *testing.T) {
 		shouldBeLogged bool
 	}{
 		{
-			name:           "Debug logx when level is Debug",
+			name:           "Debug log when level is Debug",
 			minLevel:       slog.LevelDebug,
 			logFunc:        (*Logger).Debug,
 			logLevel:       slog.LevelDebug,
 			shouldBeLogged: true,
 		},
 		{
-			name:           "Info logx when level is Info",
+			name:           "Info log when level is Info",
 			minLevel:       slog.LevelInfo,
 			logFunc:        (*Logger).Info,
 			logLevel:       slog.LevelInfo,
 			shouldBeLogged: true,
 		},
 		{
-			name:           "Warn logx when level is Warn",
+			name:           "Warn log when level is Warn",
 			minLevel:       slog.LevelWarn,
 			logFunc:        (*Logger).Warn,
 			logLevel:       slog.LevelWarn,
 			shouldBeLogged: true,
 		},
 		{
-			name:           "Error logx when level is Error",
+			name:           "Error log when level is Error",
 			minLevel:       slog.LevelError,
 			logFunc:        (*Logger).Error,
 			logLevel:       slog.LevelError,
 			shouldBeLogged: true,
 		},
 		{
-			name:           "Debug logx when level is Info",
+			name:           "Debug log when level is Info",
 			minLevel:       slog.LevelInfo,
 			logFunc:        (*Logger).Debug,
 			logLevel:       slog.LevelDebug,
@@ -200,7 +198,7 @@ func TestLoggerLevelFiltering(t *testing.T) {
 			if tc.shouldBeLogged {
 				assert.NotEqual(t, 0, buf.Len(), "Log should be written")
 
-				// Verify the logx content
+				// Verify the log content
 				var logEntry map[string]interface{}
 				err := json.Unmarshal(buf.Bytes(), &logEntry)
 				assert.NoError(t, err)
@@ -214,15 +212,13 @@ func TestLoggerLevelFiltering(t *testing.T) {
 
 // TestLoggerSourceFormatting tests the source file formatting
 func TestLoggerSourceFormatting(t *testing.T) {
-	// Continuing from the previous test file...
-
 	var buf bytes.Buffer
 	logger := New(&buf, slog.LevelDebug, "test-service", mockTraceIDFn)
 
 	ctx := context.Background()
 	logger.Info(ctx, "test message")
 
-	// Parse the JSON logx output
+	// Parse the JSON log output
 	var logEntry map[string]interface{}
 	err := json.Unmarshal(buf.Bytes(), &logEntry)
 	assert.NoError(t, err)
@@ -267,12 +263,17 @@ func TestLoggerWithTraceID(t *testing.T) {
 			ctx := context.Background()
 			logger.Info(ctx, "test message")
 
-			// Skip trace ID check if no trace ID function is provided
 			if tc.traceIDFn == nil {
+				// Output must still be valid JSON and must not contain a trace_id key.
+				var logEntry map[string]interface{}
+				err := json.Unmarshal(buf.Bytes(), &logEntry)
+				assert.NoError(t, err, "output should be valid JSON even with nil TraceIDFn")
+				_, exists := logEntry["trace_id"]
+				assert.False(t, exists, "trace_id should be absent when TraceIDFn is nil")
 				return
 			}
 
-			// Parse the JSON logx output
+			// Parse the JSON log output
 			var logEntry map[string]interface{}
 			err := json.Unmarshal(buf.Bytes(), &logEntry)
 			assert.NoError(t, err)
@@ -280,37 +281,40 @@ func TestLoggerWithTraceID(t *testing.T) {
 			// Check trace ID
 			if tc.expectedTraceID != "" {
 				traceID, exists := logEntry["trace_id"]
-				assert.True(t, exists, "Trace ID should exist in logx entry")
+				assert.True(t, exists, "Trace ID should exist in log entry")
 				assert.Equal(t, tc.expectedTraceID, traceID)
 			}
 		})
 	}
 }
 
-// Benchmark the logger performance
+// BenchmarkLoggerPerformance benchmarks the logging hot path.
 func BenchmarkLoggerPerformance(b *testing.B) {
 	ctx := context.Background()
 
-	// Benchmark with different logx writers
-	benchmarkCases := []struct {
-		name   string
-		writer io.Writer
-	}{
-		{"Discard Writer", io.Discard},
-		{"Buffered Writer", &bytes.Buffer{}},
-	}
+	b.Run("Discard Writer", func(b *testing.B) {
+		logger := New(io.Discard, slog.LevelInfo, "benchmark-service", mockTraceIDFn)
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			logger.Info(ctx, "benchmark log message",
+				"key1", "value1",
+				"key2", 42,
+				"key3", true)
+		}
+	})
 
-	for _, bc := range benchmarkCases {
-		b.Run(bc.name, func(b *testing.B) {
-			logger := New(bc.writer, slog.LevelInfo, "benchmark-service", mockTraceIDFn)
-
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				logger.Info(ctx, "benchmark logx message",
-					"key1", "value1",
-					"key2", 42,
-					"key3", true)
-			}
-		})
-	}
+	b.Run("Buffered Writer", func(b *testing.B) {
+		var buf bytes.Buffer
+		logger := New(&buf, slog.LevelInfo, "benchmark-service", mockTraceIDFn)
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			buf.Reset()
+			logger.Info(ctx, "benchmark log message",
+				"key1", "value1",
+				"key2", 42,
+				"key3", true)
+		}
+	})
 }

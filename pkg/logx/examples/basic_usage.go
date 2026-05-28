@@ -17,7 +17,7 @@ func main() {
 	// Create a logger that writes to stdout
 	logger := logx.New(
 		os.Stdout,          // Write to standard output
-		slog.LevelDebug,    // Set minimum logx level to Debug
+		slog.LevelDebug,    // Set minimum log level to Debug
 		"my-service",       // Service name
 		traceIDFromContext, // Trace ID function
 	)
@@ -25,7 +25,7 @@ func main() {
 	// Create a context (can be background or with values)
 	ctx := context.Background()
 
-	// Demonstrate different logx levels
+	// Demonstrate different log levels
 	logger.Debug(ctx, "This is a debug message",
 		"user_id", 12345,
 		"action", "login")
@@ -42,7 +42,7 @@ func main() {
 		"error", "connection timeout",
 		"retry_count", 3)
 
-	// Demonstrate logging with specific caller
-	logger.Debugc(ctx, 2, "Detailed debug with specific caller",
+	// Demonstrate logging with specific caller (0 = same source location as Debug)
+	logger.Debugc(ctx, 0, "Detailed debug with specific caller",
 		"extra_info", "more context")
 }
