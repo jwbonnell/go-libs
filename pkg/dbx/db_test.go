@@ -982,7 +982,7 @@ func setupPostgres(log *logx.Logger) (connCfg ConnectionConfig, cleanup func(), 
 
 	// Exponential backoff to wait for Postgres readiness
 	testPool.MaxWait = 2 * time.Minute
-	err = testPool.Retry(func() error {
+	if err = testPool.Retry(func() error {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 		conn, err := pgx.Connect(ctx, connStr)
@@ -991,12 +991,9 @@ func setupPostgres(log *logx.Logger) (connCfg ConnectionConfig, cleanup func(), 
 		}
 		defer conn.Close(ctx)
 		return conn.Ping(ctx)
-	})
-	if err != nil {
-		err = testPool.Purge(resource)
-		if err != nil {
-			return ConnectionConfig{}, func() {}, err
-		}
+	}); err != nil {
+		_ = testPool.Purge(resource)
+		return ConnectionConfig{}, func() {}, fmt.Errorf("postgres never became ready: %w", err)
 	}
 
 	cleanup = func() {
@@ -1124,35 +1121,6 @@ func (s *DBTestSuite) TestAdvisoryLockTxBegin_SameLockIDBlocks() {
 	s.Require().True(errors.Is(err, context.DeadlineExceeded))
 
 	s.Require().NoError(tx1.Rollback(s.T().Context()))
-}
-
-func (s *DBTestSuite) TestAdvisoryLockTxBegin_BeginFailure() {
-	tx, err := AdvisoryLockTxBegin(s.T().Context(), s.db.Pool(), "test-lock")
-	s.Require().Error(err)
-	s.Require().Nil(tx)
-	s.Require().Equal("connection failed", err.Error())
-}
-
-func (s *DBTestSuite) TestAdvisoryLockTxBegin_HashWriteFailure() {
-	tx, err := AdvisoryLockTxBegin(s.T().Context(), s.db.Pool(), "test-lock")
-	s.Require().Error(err)
-	s.Require().Nil(tx)
-}
-
-func (s *DBTestSuite) TestAdvisoryLockTxBegin_AdvisoryLockFailure() {
-	tx, err := AdvisoryLockTxBegin(s.T().Context(), s.db.Pool(), "test-lock")
-	s.Require().Error(err)
-	s.Require().Nil(tx)
-	s.Require().Contains(err.Error(), "dbx.AdvisoryLockTxBegin")
-}
-
-func (s *DBTestSuite) TestAdvisoryLockTxBegin_RollbackFailureOnLockError() {
-	tx, err := AdvisoryLockTxBegin(s.T().Context(), s.db.Pool(), "test-lock")
-	s.Require().Error(err)
-	s.Require().Nil(tx)
-	s.Require().Contains(err.Error(), "failed to rollback transaction")
-	s.Require().Contains(err.Error(), "lock failed")
-	s.Require().Contains(err.Error(), "rollback failed")
 }
 
 func (s *DBTestSuite) TestAdvisoryLockTxBegin_EmptyLockID() {

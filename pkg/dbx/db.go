@@ -86,25 +86,14 @@ func (d *DB) Status(ctx context.Context) error {
 
 	for attempts := 1; ; attempts++ {
 		if err := d.pool.Ping(ctx); err == nil {
-			break
+			return nil
 		}
-
-		time.Sleep(time.Duration(attempts) * 100 * time.Millisecond)
-
-		if ctx.Err() != nil {
+		select {
+		case <-time.After(time.Duration(attempts) * 100 * time.Millisecond):
+		case <-ctx.Done():
 			return ctx.Err()
 		}
 	}
-
-	if ctx.Err() != nil {
-		return ctx.Err()
-	}
-
-	_, err := d.pool.Query(ctx, "SELECT VERSION()")
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (d *DB) Close() {

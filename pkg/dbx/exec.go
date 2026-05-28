@@ -12,6 +12,9 @@ import (
 // are automatically converted to pgx.NamedArgs
 func Exec(ctx context.Context, d queriers.Querier, sql string, args interface{}) error {
 	namedArgs, err := StructToNamedArgs(args)
+	if err != nil {
+		return fmt.Errorf("StructToNamedArgs: %w", err)
+	}
 	_, err = d.Exec(ctx, sql, namedArgs)
 	if err != nil {
 		return fmt.Errorf("dbx.Querier.Exec: %w", err)

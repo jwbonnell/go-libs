@@ -39,17 +39,11 @@ func AdvisoryLockRunInTx(ctx context.Context, db queriers.Querier, lockID string
 
 		h := fnv.New64a()
 		if _, err := h.Write([]byte(lockID)); err != nil {
-			if txErr := tx.Rollback(ctx); txErr != nil {
-				return fmt.Errorf("dbx.AdvisoryLockRunInTx: failed to rollback transaction: txErr=%w, err=%w", txErr, err)
-			}
-			return fmt.Errorf("dbx.AdvisoryLockTxBegin: %w", err)
+			return fmt.Errorf("dbx.AdvisoryLockRunInTx: %w", err)
 		}
 
 		if _, err := tx.Exec(txCtx, "SELECT pg_advisory_xact_lock($1)", int64(h.Sum64())); err != nil {
-			if txErr := tx.Rollback(ctx); txErr != nil {
-				return fmt.Errorf("dbx.AdvisoryLockTxBegin: failed to rollback transaction: txErr=%w, err=%w", txErr, err)
-			}
-			return fmt.Errorf("dbx.AdvisoryLockTxBegin: %w", err)
+			return fmt.Errorf("dbx.AdvisoryLockRunInTx: %w", err)
 		}
 
 		return fn(txCtx)
