@@ -5,7 +5,26 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 )
+
+var destFieldCache sync.Map // map[reflect.Type]map[string]int
+
+func cachedDestFields(t reflect.Type) map[string]int {
+	if v, ok := destFieldCache.Load(t); ok {
+		return v.(map[string]int)
+	}
+	m := make(map[string]int, t.NumField())
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		if f.PkgPath != "" {
+			continue
+		}
+		m[strings.ToLower(f.Name)] = i
+	}
+	destFieldCache.Store(t, m)
+	return m
+}
 
 // MapSlice maps a slice/array of src elements (value or pointer) to a slice of dest elements of type T.
 // Returns a new slice of type []T or an error.
@@ -71,17 +90,8 @@ func mapValue(src, dest reflect.Value) error {
 		return fmt.Errorf("mapValue: both src and dest must be struct, got %s and %s", src.Kind(), dest.Kind())
 	}
 
-	// Build dest field map: case-insensitive field name -> field index
-	destFieldMap := make(map[string]int)
 	destType := dest.Type()
-	for i := 0; i < dest.NumField(); i++ {
-		f := destType.Field(i)
-		if f.PkgPath != "" { // unexported
-			continue
-		}
-		name := strings.ToLower(f.Name)
-		destFieldMap[name] = i
-	}
+	destFieldMap := cachedDestFields(destType)
 
 	srcType := src.Type()
 	for i := 0; i < src.NumField(); i++ {
@@ -130,6 +140,31 @@ func setAssignable(src, dest reflect.Value) error {
 		return nil
 	}
 
+	// Handle slices/arrays before ConvertibleTo — Go 1.20+ allows slice→array
+	// conversion natively, but we enforce length safety and element-level mapping.
+	if (src.Kind() == reflect.Slice || src.Kind() == reflect.Array) &&
+		(dest.Kind() == reflect.Slice || dest.Kind() == reflect.Array) {
+		destElemType := dest.Type().Elem()
+		srcLen := src.Len()
+		if dest.Kind() == reflect.Array && srcLen > dest.Len() {
+			return fmt.Errorf("slice length %d exceeds array length %d", srcLen, dest.Len())
+		}
+		newSlice := reflect.MakeSlice(reflect.SliceOf(destElemType), srcLen, srcLen)
+		for i := 0; i < srcLen; i++ {
+			srcElem := src.Index(i)
+			destElem := newSlice.Index(i)
+			if err := setAssignable(srcElem, destElem); err != nil {
+				return fmt.Errorf("slice index %d: %w", i, err)
+			}
+		}
+		if dest.Kind() == reflect.Array {
+			reflect.Copy(dest, newSlice)
+		} else {
+			dest.Set(newSlice)
+		}
+		return nil
+	}
+
 	// If types are exactly assignable
 	if src.Type().AssignableTo(dest.Type()) {
 		dest.Set(src)
@@ -167,27 +202,6 @@ func setAssignable(src, dest reflect.Value) error {
 	// Handle structs by recursion
 	if src.Kind() == reflect.Struct && dest.Kind() == reflect.Struct {
 		return mapValue(src, dest)
-	}
-
-	// Handle slices/arrays
-	if src.Kind() == reflect.Slice && (dest.Kind() == reflect.Slice || dest.Kind() == reflect.Array) {
-		// create slice of dest element type
-		destElemType := dest.Type().Elem()
-		srcLen := src.Len()
-		newSlice := reflect.MakeSlice(reflect.SliceOf(destElemType), srcLen, srcLen)
-		for i := 0; i < srcLen; i++ {
-			srcElem := src.Index(i)
-			destElem := newSlice.Index(i)
-			if err := setAssignable(srcElem, destElem); err != nil {
-				return fmt.Errorf("slice index %d: %w", i, err)
-			}
-		}
-		if dest.Kind() == reflect.Array {
-			reflect.Copy(dest, newSlice)
-		} else {
-			dest.Set(newSlice)
-		}
-		return nil
 	}
 
 	// Handle map -> map (simple key/value assignable)

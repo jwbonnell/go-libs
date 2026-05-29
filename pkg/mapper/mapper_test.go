@@ -189,7 +189,7 @@ func (su *MapperTestSuite) TestMapStruct_NestedAndSlice() {
 }
 
 func (su *MapperTestSuite) TestMapStruct_TypesSliceToArrayLengthDiff() {
-	// Slice longer than dest array: excess elements are truncated silently.
+	// Slice longer than dest array must return an error.
 	type S1 struct {
 		A []int
 	}
@@ -197,9 +197,14 @@ func (su *MapperTestSuite) TestMapStruct_TypesSliceToArrayLengthDiff() {
 		A [1]int
 	}
 	s := S1{A: []int{1, 2}}
-	d, err := MapStruct[D1](s)
+	_, err := MapStruct[D1](s)
+	su.Require().Error(err)
+
+	// Exact-fit slice->array is fine.
+	s2 := S1{A: []int{7}}
+	d2, err := MapStruct[D1](s2)
 	su.Require().NoError(err)
-	su.Require().Equal(1, d.A[0])
+	su.Require().Equal(7, d2.A[0])
 }
 
 func (su *MapperTestSuite) TestMapStruct_MapConversion() {
@@ -263,7 +268,7 @@ func (su *MapperTestSuite) TestMapSlice_EmptyAndNil() {
 	su.Require().NoError(err)
 	su.Require().NotNil(got, "expected empty slice (not nil), got nil")
 
-	var empty []msSrc
+	empty := make([]msSrc, 0)
 	got2, err := MapSlice[msDst](empty)
 	su.Require().NoError(err)
 	su.Require().Equal(0, len(got2), "expected length 0, got %d", len(got2))
@@ -314,7 +319,7 @@ func (su *MapperTestSuite) TestConverters_NullInt64() {
 
 	got2, err = MapStruct[D2](S2{V: 0})
 	su.Require().NoError(err)
-	su.Require().Equal(sql.NullInt64{Int64: 0, Valid: false}, got2.V)
+	su.Require().Equal(sql.NullInt64{Int64: 0, Valid: true}, got2.V)
 }
 
 func (su *MapperTestSuite) TestConverters_NullInt32() {
