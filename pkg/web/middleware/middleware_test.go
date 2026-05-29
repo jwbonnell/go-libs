@@ -63,7 +63,7 @@ func okHandler(w http.ResponseWriter, r *http.Request) httpx.Responder {
 }
 
 func TestErrorMiddleware(t *testing.T) {
-	mw := Errors(logx.NewCILogger("unit-tests"))
+	mw := Errors(logx.NewCILogger("unit-tests"), nil)
 	ok := httpx.HandlerFunc(func(w http.ResponseWriter, r *http.Request) httpx.Responder {
 		return httpx.ErrorResponse(
 			httpx.NewTrustedError("my trusted error", errors.New("internal error message")),
@@ -75,5 +75,21 @@ func TestErrorMiddleware(t *testing.T) {
 	w := httptest.NewRecorder()
 	resp := h(w, httptest.NewRequest("GET", "/", nil))
 	require.Error(t, resp.Error())
-	require.Equal(t, resp.Error().Error(), "my trusted error")
+	require.Equal(t, "my trusted error", resp.Error().Error())
+}
+
+func TestErrorMiddleware_NonTrustedError(t *testing.T) {
+	mw := Errors(logx.NewCILogger("unit-tests"), nil)
+	ok := httpx.HandlerFunc(func(w http.ResponseWriter, r *http.Request) httpx.Responder {
+		return httpx.ErrorResponse(
+			errors.New("some non-trusted error"),
+			http.StatusTeapot,
+		)
+	})
+	h := mw(ok)
+
+	w := httptest.NewRecorder()
+	resp := h(w, httptest.NewRequest("GET", "/", nil))
+	require.Error(t, resp.Error())
+	require.Equal(t, "I'm a teapot", resp.Error().Error()) //non-trusted error is logged by not sent in response
 }
