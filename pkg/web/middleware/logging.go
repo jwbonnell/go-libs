@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
@@ -17,13 +16,7 @@ func Logger(log *logx.Logger) httpx.Middleware {
 			if resp.Error() == nil {
 				ctx := r.Context()
 				v := httpx.GetValues(ctx)
-
-				path := r.URL.Path
-				if r.URL.RawQuery != "" {
-					path = fmt.Sprintf("%s?%s", path, r.URL.RawQuery)
-				}
-
-				log.Info(ctx, "request completed", "trace_id", v.TraceID, "method", r.Method, "path", path,
+				log.Info(ctx, "request completed", "trace_id", v.TraceID, "method", r.Method, "path", r.URL.Path,
 					"remoteaddr", r.RemoteAddr, "statuscode", resp.Status(), "since", time.Since(v.Now))
 			}
 

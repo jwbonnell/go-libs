@@ -64,7 +64,6 @@ func (r ErrorResponder) Respond(ctx context.Context, w http.ResponseWriter, req 
 		encoder = NewEncoder("json")
 	case "application/xml":
 		encoder = NewEncoder("xml")
-	case "text/plain":
 	default:
 		encoder = NewEncoder("plaintext")
 	}
@@ -197,8 +196,7 @@ func (r FileResponder) Respond(ctx context.Context, w http.ResponseWriter, req *
 		w.Header().Set(k, v)
 	}
 
-	w.WriteHeader(r.StatusCode)
-	http.ServeFile(w, req, r.FilePath) // You'd need to pass *http.Request through context
+	http.ServeFile(w, req, r.FilePath)
 	return nil
 }
 
@@ -282,7 +280,7 @@ type NoopResponder struct {
 	BaseResponder
 }
 
-func NoopResponse() NoopResponder {
+func NoopResponse() Responder {
 	return NoopResponder{}
 }
 
@@ -307,6 +305,5 @@ func Custom(statusCode int, fn func(ctx context.Context, w http.ResponseWriter, 
 
 func (r CustomResponder) Respond(ctx context.Context, w http.ResponseWriter, req *http.Request) error {
 	SetContextStatusCode(ctx, r.StatusCode)
-	w.WriteHeader(r.StatusCode)
 	return r.Fn(ctx, w, req)
 }

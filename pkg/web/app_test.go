@@ -175,9 +175,10 @@ func TestAppServeHTTP_CORSHeaders(t *testing.T) {
 			requestOrigin: "http://notallowed.com",
 			shouldAllow:   false,
 			expectedHeaders: map[string]string{
-				"Access-Control-Allow-Methods": "POST, PATCH, GET, OPTIONS, PUT, DELETE",
-				"Access-Control-Allow-Headers": "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization",
-				"Access-Control-Max-Age":       "86400",
+				"Access-Control-Allow-Origin":  "",
+				"Access-Control-Allow-Methods": "",
+				"Access-Control-Allow-Headers": "",
+				"Access-Control-Max-Age":       "",
 				"Strict-Transport-Security":    "max-age=63072000; includeSubDomains; preload",
 			},
 		},

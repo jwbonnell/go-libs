@@ -33,17 +33,28 @@ func (a *App) WithPrefix(prefix string) {
 func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if a.origins != nil {
 		origin := r.Header.Get("Origin")
+		var matched, wildcard bool
 		for _, allowedOrigin := range a.origins {
-			if allowedOrigin == "*" || origin == allowedOrigin {
+			if allowedOrigin == "*" {
+				matched = true
+				wildcard = true
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				break
+			}
+			if origin == allowedOrigin {
+				matched = true
 				w.Header().Set("Access-Control-Allow-Origin", origin)
 				break
 			}
 		}
-
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, PATCH, GET, OPTIONS, PUT, DELETE")
-		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
-		w.Header().Set("Access-Control-Max-Age", "86400")
+		if matched {
+			if !wildcard {
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
+			}
+			w.Header().Set("Access-Control-Allow-Methods", "POST, PATCH, GET, OPTIONS, PUT, DELETE")
+			w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+			w.Header().Set("Access-Control-Max-Age", "86400")
+		}
 	}
 
 	// Max-age is set to 2 years, and is suffixed with
@@ -71,30 +82,23 @@ func (a *App) HandleFunc(method string, path string, handler httpx.HandlerFunc, 
 	handler = httpx.Wrap(mw, handler)   // route level mw
 	handler = httpx.Wrap(a.mw, handler) // app level mw
 	fullPath := httpx.BuildPath(method, httpx.JoinPaths(a.prefix, path))
-
-	h := func(w http.ResponseWriter, r *http.Request) {
-		v := httpx.Values{
-			TraceID: uuid.NewString(),
-			Now:     time.Now().UTC(),
-		}
-		ctx := context.WithValue(r.Context(), httpx.CtxKey, &v)
-
-		resp := handler(w, r)
-
-		if err := resp.Respond(ctx, w, r); err != nil {
-			a.log.Error(ctx, "web-respond", "ERROR", err)
-			return
-		}
-	}
-
-	a.mux.HandleFunc(fullPath, h)
+	a.mux.HandleFunc(fullPath, serve(a.log, handler))
 }
 
 func (a *App) WithCORS(origins ...string) {
 	a.origins = origins
 }
 
-/*func (a *App) WithTracing(tracer Tracer) {
-	a.tracer = tracer
+func serve(log *logx.Logger, handler httpx.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		v := httpx.Values{
+			TraceID: uuid.NewString(),
+			Now:     time.Now().UTC(),
+		}
+		ctx := context.WithValue(r.Context(), httpx.CtxKey, &v)
+		resp := handler(w, r)
+		if err := resp.Respond(ctx, w, r); err != nil {
+			log.Error(ctx, "web-respond", "ERROR", err)
+		}
+	}
 }
-*/

@@ -17,7 +17,11 @@ func NewTrustedError(msg string, err error) error {
 }
 
 func (te *TrustedError) Error() string {
-	return te.Err.Error()
+	return te.Msg
+}
+
+func (te *TrustedError) Unwrap() error {
+	return te.Err
 }
 
 func IsTrustedError(err error) bool {

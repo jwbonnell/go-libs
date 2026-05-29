@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/jwbonnell/go-libs/pkg/logx"
@@ -20,13 +19,7 @@ func Errors(log *logx.Logger) httpx.Middleware {
 			resp := next(w, r)
 			if resp.Error() != nil {
 				v := httpx.GetValues(ctx)
-
-				path := r.URL.Path
-				if r.URL.RawQuery != "" {
-					path = fmt.Sprintf("%s?%s", path, r.URL.RawQuery)
-				}
-
-				log.Error(ctx, "request error", "trace_id", v.TraceID, "statuscode", resp.Status(), "error", resp.Error(), "method", r.Method, "path", path)
+				log.Error(ctx, "request error", "trace_id", v.TraceID, "statuscode", resp.Status(), "error", resp.Error(), "method", r.Method, "path", r.URL.Path)
 
 				var statusCode = resp.Status()
 				if statusCode < 400 {

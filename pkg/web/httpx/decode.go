@@ -9,6 +9,8 @@ import (
 	"strings"
 )
 
+const MaxBodyBytes int64 = 4 << 20 // 4 MB
+
 var ErrUnsupportedContentType = fmt.Errorf("unsupported content type")
 
 // Decode r.Body and use the Content-Type header to determine which decoder to use.
@@ -19,15 +21,17 @@ func Decode(r *http.Request, out any) error {
 		ct = strings.TrimSpace(ct[:i])
 	}
 
+	body := io.LimitReader(r.Body, MaxBodyBytes)
+
 	var err error
 	switch ct {
 	case "application/json", "application/vnd.api+json":
-		err = decodeJSON(r.Body, out)
+		err = decodeJSON(body, out)
 	case "application/xml", "text/xml", "application/rss+xml", "application/atom+xml":
-		err = decodeXML(r.Body, out)
+		err = decodeXML(body, out)
 	case "text/plain", "":
 		// allow empty Content-Type as plain text
-		err = decodeText(r.Body, out)
+		err = decodeText(body, out)
 	default:
 		return ErrUnsupportedContentType
 	}

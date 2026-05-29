@@ -1,7 +1,6 @@
 package validate
 
 import (
-	"encoding/json"
 	"errors"
 	"reflect"
 	"strings"
@@ -20,12 +19,14 @@ var (
 
 func init() {
 	uni = ut.New(en.New(), en.New())
-	var err error
-	trans, _ = uni.GetTranslator("en")
+	var ok bool
+	if trans, ok = uni.GetTranslator("en"); !ok {
+		panic("validate: failed to find 'en' translator")
+	}
 
 	validate = validator.New()
-	if err = en_translations.RegisterDefaultTranslations(validate, trans); err != nil {
-		panic("Failed to register translations: " + err.Error())
+	if err := en_translations.RegisterDefaultTranslations(validate, trans); err != nil {
+		panic("validate: failed to register translations: " + err.Error())
 	}
 
 	// Set field names to JSON struct tags if found
@@ -79,9 +80,9 @@ type VErrors []VError
 
 // Error implements the error interface
 func (ves VErrors) Error() string {
-	d, err := json.Marshal(ves)
-	if err != nil {
-		return err.Error()
+	msgs := make([]string, len(ves))
+	for i, ve := range ves {
+		msgs[i] = ve.Field + ": " + ve.Err
 	}
-	return string(d)
+	return "validation failed: " + strings.Join(msgs, "; ")
 }

@@ -26,7 +26,7 @@ func NewEncoder(id string) Encoder {
 	case "xml":
 		e = &XMLEncoder{}
 	default:
-		return nil
+		panic("httpx: unknown encoder id: " + id)
 	}
 	return e
 }
