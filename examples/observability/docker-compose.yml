@@ -1,0 +1,87 @@
+services:
+  tempo:
+    image: grafana/tempo:2.6.0
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./config/tempo.yaml:/etc/tempo.yaml
+    ports:
+      - "14317:4317"   # OTLP gRPC
+      - "13200:3200"   # HTTP + gRPC-over-HTTP query
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:3.3.0
+    command: ["-config.file=/etc/loki/config.yaml"]
+    volumes:
+      - ./config/loki.yaml:/etc/loki/config.yaml
+    ports:
+      - "13100:3100"
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.55.0
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=1h"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "19090:9090"
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:3.3.0
+    command: ["-config.file=/etc/promtail/config.yaml"]
+    volumes:
+      - ./config/promtail.yaml:/etc/promtail/config.yaml
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+    volumes:
+      - ./config/grafana/provisioning:/etc/grafana/provisioning
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "13000:3000"
+    depends_on:
+      - prometheus
+      - tempo
+      - loki
+    restart: unless-stopped
+
+  sample-api:
+    build:
+      context: ../..
+      dockerfile: examples/observability/sample-api/Dockerfile
+    environment:
+      - ADDR=:8080
+      - TEMPO_ENDPOINT=tempo:4317
+    ports:
+      - "18080:8080"
+    restart: on-failure
+    depends_on:
+      - tempo
+
+  loadgen:
+    build:
+      context: .
+      dockerfile: Dockerfile.loadgen
+    entrypoint: ["/bin/bash", "/loadgen.sh"]
+    volumes:
+      - ./loadgen.sh:/loadgen.sh:ro
+    environment:
+      - API_URL=http://sample-api:8080
+      - RATE=2
+    depends_on:
+      - sample-api
+
+volumes:
+  grafana-data:
