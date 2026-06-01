@@ -63,7 +63,7 @@ func okHandler(w http.ResponseWriter, r *http.Request) httpx.Responder {
 }
 
 func TestErrorMiddleware(t *testing.T) {
-	mw := Errors(logx.NewCILogger("unit-tests"), nil)
+	mw := Errors(logx.NewCILogger("unit-tests"))
 	ok := httpx.HandlerFunc(func(w http.ResponseWriter, r *http.Request) httpx.Responder {
 		return httpx.ErrorResponse(
 			httpx.NewTrustedError("my trusted error", errors.New("internal error message")),
@@ -79,7 +79,7 @@ func TestErrorMiddleware(t *testing.T) {
 }
 
 func TestErrorMiddleware_NonTrustedError(t *testing.T) {
-	mw := Errors(logx.NewCILogger("unit-tests"), nil)
+	mw := Errors(logx.NewCILogger("unit-tests"))
 	ok := httpx.HandlerFunc(func(w http.ResponseWriter, r *http.Request) httpx.Responder {
 		return httpx.ErrorResponse(
 			errors.New("some non-trusted error"),

@@ -3,7 +3,6 @@ package middleware
 import (
 	"errors"
 	"net/http"
-	"net/url"
 
 	"github.com/jwbonnell/go-libs/pkg/logx"
 	"github.com/jwbonnell/go-libs/pkg/web/httpx"
@@ -14,9 +13,10 @@ import (
 // to avoid leaking API implementation details. TrustedErrors are an opt-in way to return error information
 // to the API consumer.
 //
-// sanitize is called with the request URL to produce the path string logged on errors.
-// Pass nil to log only r.URL.Path with no query string.
-func Errors(log *logx.Logger, sanitize func(*url.URL) string) httpx.Middleware {
+// Use WithSanitizer to provide a function that produces the path string logged on errors.
+// Without it, only r.URL.Path is logged with no query string.
+func Errors(log *logx.Logger, opts ...Option) httpx.Middleware {
+	o := applyOptions(opts)
 	m := func(next httpx.HandlerFunc) httpx.HandlerFunc {
 		h := func(w http.ResponseWriter, r *http.Request) httpx.Responder {
 			ctx := r.Context()
@@ -31,7 +31,7 @@ func Errors(log *logx.Logger, sanitize func(*url.URL) string) httpx.Middleware {
 				}
 
 				log.Error(ctx, "request error", "trace_id", v.TraceID, "statuscode", resp.Status(),
-					"error", logErr, "method", r.Method, "path", logPath(r.URL, sanitize))
+					"error", logErr, "method", r.Method, "path", logPath(r.URL, o.sanitize))
 
 				statusCode := resp.Status()
 				if statusCode < 400 {

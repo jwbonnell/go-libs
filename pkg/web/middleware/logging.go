@@ -11,9 +11,10 @@ import (
 
 // Logger middleware logs completed requests that produced no error.
 //
-// sanitize is called with the request URL to produce the path string that is logged.
-// Pass nil to log only r.URL.Path with no query string.
-func Logger(log *logx.Logger, sanitize func(*url.URL) string) httpx.Middleware {
+// Use WithSanitizer to provide a function that produces the path string that is logged.
+// Without it, only r.URL.Path is logged with no query string.
+func Logger(log *logx.Logger, opts ...Option) httpx.Middleware {
+	o := applyOptions(opts)
 	m := func(next httpx.HandlerFunc) httpx.HandlerFunc {
 		h := func(w http.ResponseWriter, r *http.Request) httpx.Responder {
 			resp := next(w, r)
@@ -22,7 +23,7 @@ func Logger(log *logx.Logger, sanitize func(*url.URL) string) httpx.Middleware {
 				ctx := r.Context()
 				v := httpx.GetValues(ctx)
 				log.Info(ctx, "request completed", "trace_id", v.TraceID, "method", r.Method,
-					"path", logPath(r.URL, sanitize), "remoteaddr", r.RemoteAddr,
+					"path", logPath(r.URL, o.sanitize), "remoteaddr", r.RemoteAddr,
 					"statuscode", resp.Status(), "since", time.Since(v.Now))
 			}
 
